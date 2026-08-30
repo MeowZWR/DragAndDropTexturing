@@ -3906,7 +3906,9 @@ namespace RoleplayingVoice
                             }
 
                             if (ApplyOnionLayerMods(item, categoryKey, overrideType))
+                            {
                                 hasContextualLayers = true;
+                            }
 
                             // Advanced Overlays (Proteus/Metadata from Penumbra mods)
                             if (ApplyAdvancedOverlays(item, categoryKey, collectionId))

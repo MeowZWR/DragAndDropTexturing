@@ -697,6 +697,13 @@ public class MainWindow : Window, IDisposable
 
     private void DrawProteusFoundMods()
     {
+        if (DragAndDropTexturing.Overlays.AdvancedOverlayParser.IsProteusPluginInstalled())
+        {
+            ImGui.Spacing();
+            ImGui.TextColored(new Vector4(1.0f, 0.8f, 0.2f, 1.0f), Translator.LocalizeUI("Proteus plugin is currently installed and active in Dalamud. Proteus mod processing in Drag and Drop Texturing is bypassed."));
+            return;
+        }
+
         ImGui.Spacing();
         ImGui.TextWrapped(Translator.LocalizeUI("Proteus overlay mods discovered from Penumbra. Use Colors to edit the full 1–16 color table (index maps use multiple rows; overlays without an index mainly use row 16). Simple Tint/Emissive are optional extras on top of baked rows."));
         ImGui.Spacing();

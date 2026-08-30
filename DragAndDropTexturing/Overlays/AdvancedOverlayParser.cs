@@ -176,7 +176,34 @@ namespace DragAndDropTexturing.Overlays
             return null;
         }
 
-        public static bool HasOverlaySidecar(string modRoot) => FindMetadataJsonPath(modRoot) != null;
+        public static bool IsProteusPluginInstalled()
+        {
+            try
+            {
+                var pluginInterface = DragAndDropTexturing.Plugin.PluginInterface;
+                if (pluginInterface != null && pluginInterface.InstalledPlugins != null)
+                {
+                    foreach (var plugin in pluginInterface.InstalledPlugins)
+                    {
+                        if (plugin.IsLoaded &&
+                            (string.Equals(plugin.Name, "Proteus", StringComparison.OrdinalIgnoreCase) ||
+                             string.Equals(plugin.InternalName, "Proteus", StringComparison.OrdinalIgnoreCase)))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        public static bool HasOverlaySidecar(string modRoot)
+        {
+            if (IsProteusPluginInstalled())
+                return false;
+            return FindMetadataJsonPath(modRoot) != null;
+        }
 
         public static AdvancedOverlayMod Parse(string jsonPath)
         {
@@ -273,10 +300,6 @@ namespace DragAndDropTexturing.Overlays
             if (overlay == null)
                 return false;
 
-            if (!string.IsNullOrEmpty(overlay.Layer)
-                && overlay.Layer.Equals("Gear", System.StringComparison.OrdinalIgnoreCase))
-                return true;
-
             if (!string.IsNullOrEmpty(overlay.Shader)
                 && overlay.Shader.Contains("scroll", StringComparison.OrdinalIgnoreCase))
                 return true;
@@ -312,6 +335,28 @@ namespace DragAndDropTexturing.Overlays
             InferTargetFromMaterialPaths(overlay.MaterialGamePath, overlay.SourceBodyType,
                 out var part, out var uv);
 
+            var combinedCoverageMasks = new List<string>();
+            if (!string.IsNullOrEmpty(maskPath) &&
+                (maskPath.Contains("Masks", StringComparison.OrdinalIgnoreCase) || !maskPath.Contains("_m", StringComparison.OrdinalIgnoreCase)))
+            {
+                combinedCoverageMasks.Add(maskPath);
+            }
+
+            if (coverageMaskPaths != null)
+            {
+                foreach (var m in coverageMaskPaths)
+                {
+                    if (!string.IsNullOrEmpty(m) && !combinedCoverageMasks.Contains(m, StringComparer.OrdinalIgnoreCase))
+                        combinedCoverageMasks.Add(m);
+                }
+            }
+
+            string materialMaskPath = null;
+            if (!string.IsNullOrEmpty(maskPath) && maskPath.Contains("_m", StringComparison.OrdinalIgnoreCase))
+            {
+                materialMaskPath = maskPath;
+            }
+
             return new ResolvedAdvancedOverlay
             {
                 ModName = modName,
@@ -319,13 +364,11 @@ namespace DragAndDropTexturing.Overlays
                 UVType = uv,
                 DiffusePath = diffPath,
                 NormalPath = normPath,
-                MaskPath = maskPath,
+                MaskPath = materialMaskPath,
                 IndexPath = indexPath,
                 GenerateDiffuse = overlay.GenerateDiffuse,
                 ColorTableRows = colorTableRows != null ? new List<AdvancedColorTableRow>(colorTableRows) : null,
-                CoverageMaskPaths = coverageMaskPaths != null
-                    ? new List<string>(coverageMaskPaths)
-                    : new List<string>(),
+                CoverageMaskPaths = combinedCoverageMasks,
             };
         }
 

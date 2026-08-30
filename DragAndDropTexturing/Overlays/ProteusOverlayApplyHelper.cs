@@ -64,6 +64,7 @@ namespace DragAndDropTexturing.Overlays
                 {
                     if (!string.IsNullOrEmpty(baked.DiffuseMemoryPath))
                         diffusePath = baked.DiffuseMemoryPath;
+                    normalPath = baked.NormalMemoryPath;
                     emissivePath = baked.EmissiveMemoryPath;
                 }
 
