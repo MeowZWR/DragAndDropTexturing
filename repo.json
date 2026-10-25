@@ -1,25 +1,26 @@
 [
   {
-    "Author": "Sebastina",
+    "Author": "Sebby",
     "Name": "Drag And Drop Texturing",
-    "Description": "把贴图直接拖放到你看到的角色上！",
+    "Punchline": "把贴图直接拖进游戏。",
+    "Description": "把透明叠加、漫反射或 PSD 直接拖放到角色身体或面部。自动识别身体类型并转换为兼容贴图，可叠加 Bibo、Gen3、Gen2，并支持 Proteus 与 Onion 图层。",
     "Tags": [
       "Drag And Drop",
       "Texturing"
     ],
     "InternalName": "DragAndDropTexturing",
-    "AssemblyVersion": "0.1.0.9",
-    "TestingAssemblyVersion": "0.1.0.9",
-    "RepoUrl": "https://github.com/Sebane1/DragAndDropTexturing",
+    "AssemblyVersion": "0.1.1.0",
+    "TestingAssemblyVersion": "0.1.1.0",
+    "RepoUrl": "https://github.com/MeowZWR/DragAndDropTexturing",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 15,
     "IsHide": "False",
     "IsTestingExclusive": "False",
     "DownloadCount": 0,
     "LastUpdate": 0,
-    "DownloadLinkInstall": "https://github.com/Sebane1/DragAndDropTexturing/releases/download/0.1.0.9/DragAndDropTexturing.zip",
-    "DownloadLinkTesting": "https://github.com/Sebane1/DragAndDropTexturing/releases/download/0.1.0.9/DragAndDropTexturing.zip",
-    "DownloadLinkUpdate": "https://github.com/Sebane1/DragAndDropTexturing/releases/download/0.1.0.9/DragAndDropTexturing.zip",
+    "DownloadLinkInstall": "https://meowrs.com/https://github.com/MeowZWR/DragAndDropTexturing/releases/download/0.1.1.0-cn/DragAndDropTexturing.zip",
+    "DownloadLinkTesting": "https://meowrs.com/https://github.com/MeowZWR/DragAndDropTexturing/releases/download/0.1.1.0-cn/DragAndDropTexturing.zip",
+    "DownloadLinkUpdate": "https://meowrs.com/https://github.com/MeowZWR/DragAndDropTexturing/releases/download/0.1.1.0-cn/DragAndDropTexturing.zip",
     "IconUrl": ""
   }
 ]

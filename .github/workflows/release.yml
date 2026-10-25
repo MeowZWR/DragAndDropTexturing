@@ -3,7 +3,7 @@ on:
     inputs: {}
   push:
     tags:
-      - '*'
+      - '*-cn'
       - '!testing_*'
 
 name: Release
@@ -15,13 +15,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
-          token: ${{ secrets.RELEASE }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup .NET
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.x.x'
 
@@ -35,16 +35,16 @@ jobs:
 
       - name: Build
         run: |
-          $ver = '${{ github.ref }}' -replace 'refs/tags/',''
-          dotnet build --no-restore -c Release --nologo -p:Version=$ver
+          $ver = '${{ github.ref_name }}' -replace '-cn$',''
+          dotnet build --no-restore -c Release --nologo -p:Version=$ver -p:FileVersion=$ver -p:AssemblyVersion=$ver
 
       - name: Write version into manifest
         run: |
-          $ver = '${{ github.ref }}' -replace 'refs/tags/',''
+          $ver = '${{ github.ref_name }}' -replace '-cn$',''
           $path = './DragAndDropTexturing/bin/x64/Release/DragAndDropTexturing.json'
-          $content = get-content -path $path
+          $content = Get-Content -Path $path
           $content = $content -replace '0.0.0.0',$ver
-          set-content -Path $path -Value $content
+          Set-Content -Path $path -Value $content
 
       - name: Packing Release
         run: |
@@ -59,32 +59,54 @@ jobs:
           name: DragAndDropTexturing ${{ github.ref_name }}
           artifacts: "./DragAndDropTexturing/bin/x64/*.zip"
           tag: ${{ github.ref_name }}
-          body: "A build of the Drag And Drop Texturing plugin. Do not install this manually. Install via the dalamud repo link!"
+          body: "CN build of Drag And Drop Texturing. Do not install this manually. Install via the Dalamud plugin repo!"
           omitBodyDuringUpdate: true
           allowUpdates: true
           replacesArtifacts: true
-          token: ${{ secrets.RELEASE }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Write out repo.json
         run: |
-          $ver = '${{ github.ref_name }}'
+          $tag = '${{ github.ref_name }}'
+          $ver = $tag -replace '-cn$',''
+          $repo = '${{ github.repository }}'
+          $downloadUrl = "https://meowrs.com/https://github.com/$repo/releases/download/$tag/DragAndDropTexturing.zip"
           $path = './repo.json'
           $json = Get-Content -Raw $path | ConvertFrom-Json
           $json[0].AssemblyVersion = $ver
           $json[0].TestingAssemblyVersion = $ver
-          $json[0].DownloadLinkInstall = $json[0].DownloadLinkInstall -replace '[^/]+/DragAndDropTexturing.zip',"$ver/DragAndDropTexturing.zip"
-          $json[0].DownloadLinkTesting = $json[0].DownloadLinkTesting -replace '[^/]+/DragAndDropTexturing.zip',"$ver/DragAndDropTexturing.zip"
-          $json[0].DownloadLinkUpdate = $json[0].DownloadLinkUpdate -replace '[^/]+/DragAndDropTexturing.zip',"$ver/DragAndDropTexturing.zip"
+          $json[0].RepoUrl = "https://github.com/$repo"
+          $json[0].DownloadLinkInstall = $downloadUrl
+          $json[0].DownloadLinkTesting = $downloadUrl
+          $json[0].DownloadLinkUpdate = $downloadUrl
           $content = ConvertTo-Json @($json) -Depth 10
-          set-content -Path $path -Value $content
+          Set-Content -Path $path -Value $content
 
       - name: Commit repo.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          git remote set-url origin https://x-access-token:${GITHUB_TOKEN}@github.com/${{ github.repository }}.git
           git config --global user.name "Actions User"
           git config --global user.email "actions@github.com"
-          git fetch origin master
-          git branch -f master ${{ github.sha }}
-          git checkout master
+          git fetch origin cn
+          git branch -f cn ${{ github.sha }}
+          git checkout cn
           git add repo.json
           git commit -m "[CI] Updating repo.json for ${{ github.ref_name }}" || true
-          git push origin master
+          git push origin cn
+
+  trigger_workflow:
+    name: Trigger DalamudPlugin CI
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Workflow in DalamudPlugin Repository
+        run: |
+          curl -L \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${{ secrets.MEOWRSTRIGGER }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            https://api.github.com/repos/MeowZWR/DalamudPlugin/dispatches \
+            -d '{"event_type": "request-update-run-action", "client_payload": {"unit": false, "integration": true}}'
