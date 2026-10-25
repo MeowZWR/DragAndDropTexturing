@@ -47,6 +47,7 @@ public class Configuration : IPluginConfiguration
     public List<DragAndDropTexturing.VideoPlayback.AnimatedLayerDefinition> AnimatedLayers { get; set; } = new List<DragAndDropTexturing.VideoPlayback.AnimatedLayerDefinition>();
     public List<ActiveLayerPreset> ActiveLayerPresets { get; set; } = new();
     public int LanguageOverride { get; set; } = -1; // -1 = Auto
+    public bool EnableOnlineTranslation { get; set; } = false;
     public Dictionary<string, Vector4> PenumbraOverlayTints { get; set; } = new Dictionary<string, Vector4>();
     public Dictionary<string, Vector4> PenumbraOverlayGlowTints { get; set; } = new Dictionary<string, Vector4>();
 

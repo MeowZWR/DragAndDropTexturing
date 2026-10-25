@@ -33,7 +33,7 @@ public class MainWindow : Window, IDisposable
     private readonly FileDialogManager _fileDialogManager = new();
 
     public MainWindow(Plugin plugin)
-        : base("Drag And Drop Texturing Config v" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version, ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+        : base("Drag And Drop Texturing Config###DDTMain", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         SizeConstraints = new WindowSizeConstraints
         {
@@ -222,22 +222,23 @@ public class MainWindow : Window, IDisposable
 
     public override void Draw()
     {
+        WindowName = Translator.LocalizeUI("Drag And Drop Texturing Config") + " v" + System.Reflection.Assembly.GetExecutingAssembly().GetName().Version + "###DDTMain";
         _fileDialogManager.Draw();
         bool isDownloading = Plugin.DragAndDropTextures != null && Plugin.DragAndDropTextures.IsDownloadingDLC;
         if (isDownloading)
         {
-            ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), "Background DLC download in progress. Settings locked.");
+            ImGui.TextColored(new Vector4(1.0f, 0.5f, 0.0f, 1.0f), Translator.LocalizeUI("Background DLC download in progress. Settings locked."));
             ImGui.Spacing();
 
             float progress = Plugin.DragAndDropTextures.DLCDownloadProgress;
             if (progress > 0f && progress < 1f)
             {
-                ImGui.ProgressBar(progress, new Vector2(-1, 0), $"Downloading DLC: {(progress * 100):0.0}%");
+                ImGui.ProgressBar(progress, new Vector2(-1, 0), Translator.LocalizeUI("Downloading DLC:") + $" {(progress * 100):0.0}%");
             }
             else
             {
                 float bounce = (float)Math.Abs(Math.Sin(ImGui.GetTime() * 2.0));
-                ImGui.ProgressBar(bounce, new Vector2(-1, 0), "Fetching DLC (Please wait)...");
+                ImGui.ProgressBar(bounce, new Vector2(-1, 0), Translator.LocalizeUI("Fetching DLC (Please wait)..."));
             }
             ImGui.Spacing();
 
@@ -306,7 +307,7 @@ public class MainWindow : Window, IDisposable
         if (ImGui.Button(Translator.LocalizeUI("Re-Export All Textures")))
         {
             Plugin.DragAndDropTextures?.RebuildAllCategories();
-            Plugin.Chat?.Print("[Drag And Drop Texturing] Re-exporting all active texture categories...");
+            Plugin.Chat?.Print(Translator.LocalizeUI("[Drag And Drop Texturing] Re-exporting all active texture categories..."));
         }
         if (ImGui.IsItemHovered())
         {
@@ -319,7 +320,7 @@ public class MainWindow : Window, IDisposable
         ImGui.Text(Translator.LocalizeUI("Language Override:"));
         int langOverride = Plugin.Configuration.LanguageOverride;
         string[] languagesWithAuto = new string[Translator.LanguageStrings.Length + 1];
-        languagesWithAuto[0] = "Auto Detect";
+        languagesWithAuto[0] = Translator.LocalizeUI("Auto Detect");
         for (int i = 0; i < Translator.LanguageStrings.Length; i++)
         {
             languagesWithAuto[i + 1] = Translator.LanguageStrings[i];
@@ -330,23 +331,18 @@ public class MainWindow : Window, IDisposable
         {
             Plugin.Configuration.LanguageOverride = comboIndex - 1;
             Plugin.Configuration.Save();
-
-            if (Plugin.Configuration.LanguageOverride >= 0)
-            {
-                Translator.UiLanguage = (LanguageEnum)Plugin.Configuration.LanguageOverride;
-            }
-            else
-            {
-                Translator.UiLanguage = Plugin.ClientState.ClientLanguage switch
-                {
-                    Dalamud.Game.ClientLanguage.Japanese => LanguageEnum.Japanese,
-                    Dalamud.Game.ClientLanguage.French => LanguageEnum.French,
-                    Dalamud.Game.ClientLanguage.German => LanguageEnum.German,
-                    _ => LanguageEnum.English,
-                };
-            }
+            Translator.ApplyFromConfiguration(Plugin.Configuration.LanguageOverride, Plugin.ClientState.ClientLanguage);
+            Plugin.RefreshLocalizedCommandHelp();
         }
-        ImGui.TextWrapped(Translator.LocalizeUI("Overrides the detected game language. Changes apply to UI immediately, but translating entirely new text requires network requests."));
+        ImGui.TextWrapped(Translator.LocalizeUI("Overrides the detected game language. Changes apply to UI immediately. Missing strings stay in English unless online translation is enabled."));
+
+        bool enableOnline = Plugin.Configuration.EnableOnlineTranslation;
+        if (ImGui.Checkbox(Translator.LocalizeUI("Enable online translation fallback"), ref enableOnline))
+        {
+            Plugin.Configuration.EnableOnlineTranslation = enableOnline;
+            Translator.EnableOnlineTranslation = enableOnline;
+            Plugin.Configuration.Save();
+        }
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -771,7 +767,7 @@ public class MainWindow : Window, IDisposable
                 if (!string.IsNullOrEmpty(overlayKey))
                 {
                     bool editing = _penumbraColorEditorOverlayKey == overlayKey;
-                    if (ImGui.Button(editing ? "Close##" + i : "Edit##" + i))
+                    if (ImGui.Button((editing ? Translator.LocalizeUI("Close") : Translator.LocalizeUI("Edit")) + "##" + i))
                     {
                         _penumbraColorEditorOverlayKey = editing ? null : overlayKey;
                         if (!editing)
@@ -782,7 +778,7 @@ public class MainWindow : Window, IDisposable
                 }
                 else
                 {
-                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), "N/A");
+                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), Translator.LocalizeUI("N/A"));
                 }
 
                 ImGui.TableNextColumn();
@@ -831,9 +827,9 @@ public class MainWindow : Window, IDisposable
                 }
                 else
                 {
-                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), "N/A");
+                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), Translator.LocalizeUI("N/A"));
                     ImGui.TableNextColumn();
-                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), "N/A");
+                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), Translator.LocalizeUI("N/A"));
                 }
             }
 
@@ -1126,7 +1122,7 @@ public class MainWindow : Window, IDisposable
             var preset = presets[_selectedPresetIndex];
 
             string pName = preset.Name;
-            if (ImGui.InputText("Preset Name##PresetName", ref pName, 128))
+            if (ImGui.InputText(Translator.LocalizeUI("Preset Name") + "##PresetName", ref pName, 128))
             {
                 preset.Name = pName;
                 Plugin.Configuration.Save();
@@ -1136,7 +1132,7 @@ public class MainWindow : Window, IDisposable
             if (currentJobIndex < 0) currentJobIndex = 0;
 
             ImGui.SetNextItemWidth(150);
-            if (ImGui.Combo("Linked Job", ref currentJobIndex, _jobNamesArray, _jobNamesArray.Length))
+            if (ImGui.Combo(Translator.LocalizeUI("Linked Job"), ref currentJobIndex, _jobNamesArray, _jobNamesArray.Length))
             {
                 preset.LinkedJobId = _jobIdsArray[currentJobIndex];
                 Plugin.Configuration.Save();
@@ -1395,7 +1391,7 @@ public class MainWindow : Window, IDisposable
                     if (ImGui.Button(Translator.LocalizeUI("Export to Penumbra") + "##reexport_" + key))
                     {
                         ddt.RebuildCategory(key, false);
-                        Plugin.Chat?.Print($"[Drag And Drop Texturing] Re-exporting: {key}");
+                        Plugin.Chat?.Print(Translator.LocalizeUI("[Drag And Drop Texturing] Re-exporting:") + $" {key}");
                     }
                     if (ImGui.IsItemHovered()) ImGui.SetTooltip(Translator.LocalizeUI("Re-exports this category's textures. Also available via /ddt export for all categories."));
                 }
@@ -1638,7 +1634,7 @@ public class MainWindow : Window, IDisposable
     private void ExportCategoryToPsd(string key, System.Collections.Generic.List<string> files)
     {
         if (Plugin.Chat != null)
-            Plugin.Chat.Print("[DragAndDrop] Exporting to PSD... Please wait.");
+            Plugin.Chat.Print(Translator.LocalizeUI("[DragAndDrop] Exporting to PSD... Please wait."));
 
         System.Threading.Tasks.Task.Run(() =>
         {
@@ -1744,7 +1740,7 @@ public class MainWindow : Window, IDisposable
 
                     collection.Write(psdPath, ImageMagick.MagickFormat.Psd);
                     if (Plugin.Chat != null)
-                        Plugin.Chat.Print($"[DragAndDrop] Successfully exported PSD to: {psdPath}");
+                        Plugin.Chat.Print(Translator.LocalizeUI("[DragAndDrop] Successfully exported PSD to:") + $" {psdPath}");
 
                     System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo()
                     {
@@ -1756,14 +1752,14 @@ public class MainWindow : Window, IDisposable
                 else
                 {
                     if (Plugin.Chat != null)
-                        Plugin.Chat.Print($"[DragAndDrop] Error: No valid image files found to export.");
+                        Plugin.Chat.Print(Translator.LocalizeUI("[DragAndDrop] Error: No valid image files found to export."));
                     Plugin.PluginLog.Warning($"No valid files found to export for category {key}");
                 }
             }
             catch (Exception ex)
             {
                 if (Plugin.Chat != null)
-                    Plugin.Chat.Print($"[DragAndDrop] Failed to export PSD! Check the plugin log for details.");
+                    Plugin.Chat.Print(Translator.LocalizeUI("[DragAndDrop] Failed to export PSD! Check the plugin log for details."));
                 Plugin.PluginLog.Error(ex, $"Failed to export category {key} to PSD");
             }
         });
@@ -1771,7 +1767,7 @@ public class MainWindow : Window, IDisposable
 
     private void ExportCategoryToProteus(string key, System.Collections.Generic.List<string> files)
     {
-        Plugin.Chat?.Print("[DragAndDrop] Exporting Proteus mod... Please wait.");
+        Plugin.Chat?.Print(Translator.LocalizeUI("[DragAndDrop] Exporting Proteus mod... Please wait."));
 
         System.Threading.Tasks.Task.Run(() =>
         {
@@ -1779,7 +1775,7 @@ public class MainWindow : Window, IDisposable
             {
                 if (!TryGetProteusMaterialPath(key, out var materialGamePath, out var currentBodyType))
                 {
-                    Plugin.Chat?.Print("[DragAndDrop] Proteus export needs a resolved body or equipped gear material target.");
+                    Plugin.Chat?.Print(Translator.LocalizeUI("[DragAndDrop] Proteus export needs a resolved body or equipped gear material target."));
                     return;
                 }
 
@@ -1800,7 +1796,7 @@ public class MainWindow : Window, IDisposable
                 var sourceOverlays = CreateProteusOverlays(files, currentBodyType, tempDirectory);
                 if (sourceOverlays.Count == 0)
                 {
-                    Plugin.Chat?.Print("[DragAndDrop] Error: No valid image files found to export.");
+                    Plugin.Chat?.Print(Translator.LocalizeUI("[DragAndDrop] Error: No valid image files found to export."));
                     return;
                 }
 
@@ -1862,7 +1858,7 @@ public class MainWindow : Window, IDisposable
                     try { Directory.Delete(tempDirectory, true); } catch { }
                 }
 
-                Plugin.Chat?.Print($"[DragAndDrop] Successfully exported Proteus mod to: {pmpPath}");
+                Plugin.Chat?.Print(Translator.LocalizeUI("[DragAndDrop] Successfully exported Proteus mod to:") + $" {pmpPath}");
                 System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = exportFolder,
@@ -1872,7 +1868,7 @@ public class MainWindow : Window, IDisposable
             }
             catch (Exception ex)
             {
-                Plugin.Chat?.Print("[DragAndDrop] Failed to export Proteus mod! Check the plugin log for details.");
+                Plugin.Chat?.Print(Translator.LocalizeUI("[DragAndDrop] Failed to export Proteus mod! Check the plugin log for details."));
                 Plugin.PluginLog.Error(ex, $"Failed to export category {key} to a Proteus mod");
             }
         });
@@ -2044,7 +2040,7 @@ public class MainWindow : Window, IDisposable
         var recentLayers = Plugin.Configuration.RecentLayers;
         if (recentLayers == null || recentLayers.Count == 0)
         {
-            ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), "No previously dropped layers found.");
+            ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), Translator.LocalizeUI("No previously dropped layers found."));
             return;
         }
 
@@ -2795,7 +2791,7 @@ public class MainWindow : Window, IDisposable
         var manager = Plugin.AnimatedLayerManager;
         if (manager == null)
         {
-            ImGui.TextColored(new Vector4(1f, 0.5f, 0f, 1f), "Animated Layer Manager not initialized.");
+            ImGui.TextColored(new Vector4(1f, 0.5f, 0f, 1f), Translator.LocalizeUI("Animated Layer Manager not initialized."));
             return;
         }
 
@@ -2805,15 +2801,15 @@ public class MainWindow : Window, IDisposable
         ImGui.Spacing();
 
         ImGui.SetNextItemWidth(200);
-        ImGui.InputText("Name##AnimLayerName", ref _animatedLayerName, 128);
+        ImGui.InputText(Translator.LocalizeUI("Name") + "##AnimLayerName", ref _animatedLayerName, 128);
 
         ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X - 80);
         ImGui.InputText("##AnimLayerFolder", ref _animatedLayerFrameFolder, 512);
         ImGui.SameLine();
-        if (ImGui.Button("Browse##AnimFolder"))
+        if (ImGui.Button(Translator.LocalizeUI("Browse") + "##AnimFolder"))
         {
             _fileDialogManager.OpenFolderDialog(
-                "Select Frame Folder",
+                Translator.LocalizeUI("Select Frame Folder"),
                 (b, path) =>
                 {
                     if (b && !string.IsNullOrEmpty(path))
@@ -2821,24 +2817,25 @@ public class MainWindow : Window, IDisposable
                 },
                 null, false);
         }
-        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Folder containing sequential frame images (PNG/JPG/BMP)");
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip(Translator.LocalizeUI("Folder containing sequential frame images (PNG/JPG/BMP)"));
 
-        string[] targets = { "Body", "Face" };
+        string[] targetKeys = { "Body", "Face" };
+        string[] targetLabels = { Translator.LocalizeUI("Body"), Translator.LocalizeUI("Face") };
         ImGui.SetNextItemWidth(120);
-        ImGui.Combo("Target##AnimTarget", ref _animatedLayerTarget, targets, targets.Length);
+        ImGui.Combo(Translator.LocalizeUI("Target") + "##AnimTarget", ref _animatedLayerTarget, targetLabels, targetLabels.Length);
 
         ImGui.SetNextItemWidth(200);
-        ImGui.SliderFloat2("UV Position##AnimUVPos", ref _animatedLayerUVPos, 0f, 1f, "%.2f");
+        ImGui.SliderFloat2(Translator.LocalizeUI("UV Position") + "##AnimUVPos", ref _animatedLayerUVPos, 0f, 1f, "%.2f");
         ImGui.SetNextItemWidth(200);
-        ImGui.SliderFloat2("UV Size##AnimUVSize", ref _animatedLayerUVSize, 0.01f, 1f, "%.2f");
+        ImGui.SliderFloat2(Translator.LocalizeUI("UV Size") + "##AnimUVSize", ref _animatedLayerUVSize, 0.01f, 1f, "%.2f");
         ImGui.SetNextItemWidth(120);
-        ImGui.SliderInt("FPS##AnimFps", ref _animatedLayerFps, 1, 30);
+        ImGui.SliderInt(Translator.LocalizeUI("FPS") + "##AnimFps", ref _animatedLayerFps, 1, 30);
         ImGui.SetNextItemWidth(120);
-        ImGui.SliderFloat("Opacity##AnimOpacity", ref _animatedLayerOpacity, 0f, 1f, "%.2f");
+        ImGui.SliderFloat(Translator.LocalizeUI("Opacity") + "##AnimOpacity", ref _animatedLayerOpacity, 0f, 1f, "%.2f");
 
         // --- UV Preview Canvas ---
         ImGui.Spacing();
-        ImGui.Text("UV Preview:");
+        ImGui.Text(Translator.LocalizeUI("UV Preview:"));
         float previewSize = 200f;
         Vector2 canvasPos = ImGui.GetCursorScreenPos();
         var drawList = ImGui.GetWindowDrawList();
@@ -2901,7 +2898,7 @@ public class MainWindow : Window, IDisposable
             {
                 Name = _animatedLayerName,
                 FrameFolder = _animatedLayerFrameFolder,
-                TargetCategory = targets[_animatedLayerTarget].ToLower(),
+                TargetCategory = targetKeys[_animatedLayerTarget].ToLower(),
                 UVPosition = _animatedLayerUVPos,
                 UVSize = _animatedLayerUVSize,
                 Fps = _animatedLayerFps,
@@ -2935,17 +2932,17 @@ public class MainWindow : Window, IDisposable
 
         if (manager.ActiveLayers.Count == 0)
         {
-            ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), "No animated layers active.");
+            ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1f), Translator.LocalizeUI("No animated layers active."));
         }
         else
         {
             if (ImGui.BeginTable("AnimLayerTable", 5, ImGuiTableFlags.BordersInnerV | ImGuiTableFlags.RowBg | ImGuiTableFlags.SizingStretchProp))
             {
-                ImGui.TableSetupColumn("Name", ImGuiTableColumnFlags.WidthFixed, 150);
-                ImGui.TableSetupColumn("Target", ImGuiTableColumnFlags.WidthFixed, 60);
-                ImGui.TableSetupColumn("Progress", ImGuiTableColumnFlags.WidthStretch);
-                ImGui.TableSetupColumn("Status", ImGuiTableColumnFlags.WidthFixed, 200);
-                ImGui.TableSetupColumn("Actions", ImGuiTableColumnFlags.WidthFixed, 80);
+                ImGui.TableSetupColumn(Translator.LocalizeUI("Name"), ImGuiTableColumnFlags.WidthFixed, 150);
+                ImGui.TableSetupColumn(Translator.LocalizeUI("Target"), ImGuiTableColumnFlags.WidthFixed, 60);
+                ImGui.TableSetupColumn(Translator.LocalizeUI("Progress"), ImGuiTableColumnFlags.WidthStretch);
+                ImGui.TableSetupColumn(Translator.LocalizeUI("Status"), ImGuiTableColumnFlags.WidthFixed, 200);
+                ImGui.TableSetupColumn(Translator.LocalizeUI("Actions"), ImGuiTableColumnFlags.WidthFixed, 80);
                 ImGui.TableHeadersRow();
 
                 foreach (var kvp in manager.ActiveLayers)
@@ -2968,14 +2965,16 @@ public class MainWindow : Window, IDisposable
                     else
                     {
                         ImGui.ProgressBar(state.PreparationProgress, new Vector2(-1, 0),
-                            state.PreparationProgress < 1f ? $"Preparing {(state.PreparationProgress * 100):F0}%" : "Ready");
+                            state.PreparationProgress < 1f
+                                ? Translator.LocalizeUI("Preparing") + $" {(state.PreparationProgress * 100):F0}%"
+                                : Translator.LocalizeUI("Ready"));
                     }
 
                     ImGui.TableNextColumn();
                     if (!string.IsNullOrEmpty(state.ErrorStackTrace))
                     {
-                        ImGui.TextColored(new Vector4(1f, 0.4f, 0.4f, 1f), state.Status ?? "Error");
-                        if (ImGui.TreeNode($"View Stack Trace##{kvp.Key}"))
+                        ImGui.TextColored(new Vector4(1f, 0.4f, 0.4f, 1f), string.IsNullOrEmpty(state.Status) ? Translator.LocalizeUI("Error") : Translator.LocalizeUI(state.Status));
+                        if (ImGui.TreeNode(Translator.LocalizeUI("View Stack Trace") + $"##{kvp.Key}"))
                         {
                             ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.8f, 0.8f, 1f));
                             ImGui.TextWrapped(state.ErrorStackTrace);
@@ -2992,7 +2991,7 @@ public class MainWindow : Window, IDisposable
                     ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.8f, 0.2f, 0.2f, 1f));
                     ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.9f, 0.3f, 0.3f, 1f));
                     ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(1f, 0.4f, 0.4f, 1f));
-                    bool stopClicked = ImGui.Button("Stop##" + kvp.Key);
+                    bool stopClicked = ImGui.Button(Translator.LocalizeUI("Stop") + "##" + kvp.Key);
                     ImGui.PopStyleColor(3);
 
                     if (stopClicked)
@@ -3037,7 +3036,7 @@ public class MainWindow : Window, IDisposable
                 }
                 else
                 {
-                    ImGui.TextColored(new Vector4(0.2f, 1f, 0.2f, 1f), "Active");
+                    ImGui.TextColored(new Vector4(0.2f, 1f, 0.2f, 1f), Translator.LocalizeUI("Active"));
                 }
 
                 ImGui.SameLine();

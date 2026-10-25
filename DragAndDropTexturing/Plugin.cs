@@ -34,6 +34,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static ICondition Condition { get; private set; } = null!;
 
     private const string CommandName = "/ddt";
+    private CommandInfo _ddtCommand = null!;
     private PenumbraAndGlamourerIpcWrapper _penumbraAndGlamourerIpcWrapper;
     private IChatGui _chat;
     private int _playerCount;
@@ -74,12 +75,12 @@ public sealed class Plugin : IDalamudPlugin
         window.ContextCategoryKey = categoryKey;
         if (editPath != null)
         {
-            window.WindowName = $"Texture Painter - {Path.GetFileName(editPath)}###PaintWindow_{Guid.NewGuid()}";
+            window.WindowName = DragAndDropTexturing.LanguageHelpers.Translator.LocalizeUI("Texture Painter") + $" - {Path.GetFileName(editPath)}###PaintWindow_{Guid.NewGuid()}";
             window.OpenForEditing(editPath, categoryKey);
         }
         else
         {
-            window.WindowName = $"Texture Painter###PaintWindow_{Guid.NewGuid()}";
+            window.WindowName = DragAndDropTexturing.LanguageHelpers.Translator.LocalizeUI("Texture Painter") + $"###PaintWindow_{Guid.NewGuid()}";
             window.IsOpen = true;
         }
         TexturePaintingWindows.Add(window);
@@ -100,13 +101,18 @@ public sealed class Plugin : IDalamudPlugin
         _penumbraAndGlamourerIpcWrapper = new PenumbraAndGlamourerIpcWrapper(PluginInterface);
         _chat = chatGui;
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        DragAndDropTexturing.LanguageHelpers.Translator.EnableOnlineTranslation = Configuration.EnableOnlineTranslation;
+        DragAndDropTexturing.LanguageHelpers.Translator.LoadEmbeddedCatalog();
+        DragAndDropTexturing.LanguageHelpers.Translator.ApplyFromConfiguration(Configuration.LanguageOverride, clientState.ClientLanguage);
+        DragAndDropTexturing.LanguageHelpers.Translator.LoadCache(Path.Combine(PluginInterface.ConfigDirectory.FullName, "translation_cache.json"));
         // RunMigrations();
         DragAndDropTextures = PluginInterface.Create<DragAndDropTextureWindow>();
 
-        CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
+        _ddtCommand = new CommandInfo(OnCommand)
         {
-            HelpMessage = "Opens the config window. Subcommands: /ddt export, re-export all textures, /ddt clear, clear virtual cache."
-        });
+            HelpMessage = DragAndDropTexturing.LanguageHelpers.Translator.LocalizeUI("Opens the config window. Subcommands: /ddt export, re-export all textures, /ddt clear, clear virtual cache.")
+        };
+        CommandManager.AddHandler(CommandName, _ddtCommand);
 
         PluginInterface.UiBuilder.Draw += DrawUI;
         PluginInterface.UiBuilder.DisableCutsceneUiHide = true;
@@ -128,22 +134,6 @@ public sealed class Plugin : IDalamudPlugin
         // Painting windows are now spawned dynamically via OpenPaintWindow()
         _safeGameObjectManager = new ThreadSafeGameObjectManager(clientState, objectTable, framework, pluginLog);
         BackupTexturePaths.OverrideMode = Configuration.UsePriorityBodyMod;
-
-        if (Configuration.LanguageOverride >= 0)
-        {
-            DragAndDropTexturing.LanguageHelpers.Translator.UiLanguage = (DragAndDropTexturing.LanguageHelpers.LanguageEnum)Configuration.LanguageOverride;
-        }
-        else
-        {
-            DragAndDropTexturing.LanguageHelpers.Translator.UiLanguage = clientState.ClientLanguage switch
-            {
-                Dalamud.Game.ClientLanguage.Japanese => DragAndDropTexturing.LanguageHelpers.LanguageEnum.Japanese,
-                Dalamud.Game.ClientLanguage.French => DragAndDropTexturing.LanguageHelpers.LanguageEnum.French,
-                Dalamud.Game.ClientLanguage.German => DragAndDropTexturing.LanguageHelpers.LanguageEnum.German,
-                _ => DragAndDropTexturing.LanguageHelpers.LanguageEnum.English,
-            };
-        }
-        DragAndDropTexturing.LanguageHelpers.Translator.LoadCache(Path.Combine(PluginInterface.ConfigDirectory.FullName, "translation_cache.json"));
 
         try
         {
@@ -396,12 +386,12 @@ public sealed class Plugin : IDalamudPlugin
 
                 DragAndDropTextures?.RefreshActiveOverrides();
 
-                _chat.Print("DragAndDropTexturing: Virtual memory cache cleared and re-export triggered.");
+                _chat.Print(DragAndDropTexturing.LanguageHelpers.Translator.LocalizeUI("DragAndDropTexturing: Virtual memory cache cleared and re-export triggered."));
             }
             catch (Exception ex)
             {
                 _pluginLog.Error(ex, "Failed to clear virtual cache.");
-                _chat.Print("DragAndDropTexturing: Failed to clear virtual cache.");
+                _chat.Print(DragAndDropTexturing.LanguageHelpers.Translator.LocalizeUI("DragAndDropTexturing: Failed to clear virtual cache."));
             }
         }
         else if (trimmedArgs == "export")
@@ -410,16 +400,16 @@ public sealed class Plugin : IDalamudPlugin
             {
                 if (DragAndDropTextures == null)
                 {
-                    _chat.PrintError("[Drag And Drop Texturing] Plugin not ready.");
+                    _chat.PrintError(DragAndDropTexturing.LanguageHelpers.Translator.LocalizeUI("[Drag And Drop Texturing] Plugin not ready."));
                     return;
                 }
-                _chat.Print("[Drag And Drop Texturing] Re-exporting all active texture categories...");
+                _chat.Print(DragAndDropTexturing.LanguageHelpers.Translator.LocalizeUI("[Drag And Drop Texturing] Re-exporting all active texture categories..."));
                 DragAndDropTextures.RebuildAllCategories();
             }
             catch (Exception ex)
             {
                 _pluginLog.Error(ex, "Failed to trigger re-export.");
-                _chat.PrintError("[Drag And Drop Texturing] Re-export failed. Check the log for details.");
+                _chat.PrintError(DragAndDropTexturing.LanguageHelpers.Translator.LocalizeUI("[Drag And Drop Texturing] Re-export failed. Check the log for details."));
             }
         }
         else
@@ -464,5 +454,13 @@ public sealed class Plugin : IDalamudPlugin
     {
         DragAndDropTextures?.RefreshActiveOverrides();
         MainWindow.Toggle();
+    }
+
+    public void RefreshLocalizedCommandHelp()
+    {
+        if (_ddtCommand != null)
+        {
+            _ddtCommand.HelpMessage = DragAndDropTexturing.LanguageHelpers.Translator.LocalizeUI("Opens the config window. Subcommands: /ddt export, re-export all textures, /ddt clear, clear virtual cache.");
+        }
     }
 }

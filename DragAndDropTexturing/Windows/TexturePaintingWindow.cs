@@ -305,7 +305,7 @@ namespace DragAndDropTexturing.Windows
 
         private static readonly Random _proceduralRng = new Random();
 
-        public TexturePaintingWindow(Plugin plugin) : base("Texture Painter", ImGuiWindowFlags.NoScrollbar)
+        public TexturePaintingWindow(Plugin plugin) : base("Texture Painter###PaintWindow", ImGuiWindowFlags.NoScrollbar)
         {
             _plugin = plugin;
             RespectCloseHotkey = false;
@@ -403,6 +403,13 @@ namespace DragAndDropTexturing.Windows
 
         public override void Draw()
         {
+            int idIndex = WindowName.IndexOf("###", StringComparison.Ordinal);
+            string windowId = idIndex >= 0 ? WindowName[idIndex..] : "###PaintWindow";
+            string painterTitle = Translator.LocalizeUI("Texture Painter");
+            if (!string.IsNullOrEmpty(EditSourcePath))
+                painterTitle += " - " + Path.GetFileName(EditSourcePath);
+            WindowName = painterTitle + windowId;
+
             _painterUiPos = ImGui.GetWindowPos();
             _painterUiSize = ImGui.GetWindowSize();
             _painterUiRectValid = true;
@@ -432,7 +439,7 @@ namespace DragAndDropTexturing.Windows
             if (_isLoadingModels)
             {
                 float bounce = (float)Math.Abs(Math.Sin(ImGui.GetTime() * 2.0));
-                ImGui.ProgressBar(bounce, new Vector2(-1, 0), "Loading player models and textures...");
+                ImGui.ProgressBar(bounce, new Vector2(-1, 0), Translator.LocalizeUI("Loading player models and textures..."));
                 ImGui.Spacing();
             }
 
@@ -565,9 +572,9 @@ namespace DragAndDropTexturing.Windows
                 if (penDetected)
                     penLabel = Translator.LocalizeUI("Pen Pressure") + $" ({_tabletInput.ActiveBackend})";
                 else if (tabletExists)
-                    penLabel = Translator.LocalizeUI("Pen Pressure") + " (Enable 'Windows Ink' in tablet driver)";
+                    penLabel = Translator.LocalizeUI("Pen Pressure") + " " + Translator.LocalizeUI("(Enable 'Windows Ink' in tablet driver)");
                 else
-                    penLabel = Translator.LocalizeUI("Pen Pressure") + " (No tablet detected)";
+                    penLabel = Translator.LocalizeUI("Pen Pressure") + " " + Translator.LocalizeUI("(No tablet detected)");
                 if (penDetected) ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.4f, 1f, 0.4f, 1f));
                 else if (tabletExists) ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 1f, 0.4f, 1f));
                 ImGui.Text(penLabel);
@@ -601,7 +608,7 @@ namespace DragAndDropTexturing.Windows
 
                 if (penDetected)
                 {
-                    ImGui.ProgressBar(_tabletInput.Pressure, new Vector2(200, 14), $"Pressure: {_tabletInput.Pressure:F2}");
+                    ImGui.ProgressBar(_tabletInput.Pressure, new Vector2(200, 14), Translator.LocalizeUI("Pressure:") + $" {_tabletInput.Pressure:F2}");
                 }
 
                 ImGui.TreePop();
@@ -609,8 +616,8 @@ namespace DragAndDropTexturing.Windows
             
             ImGui.Separator();
             string commitLabel = EditSourcePath != null
-                ? "Save & Close"
-                : "Commit Paint to Active Layers";
+                ? Translator.LocalizeUI("Save & Close")
+                : Translator.LocalizeUI("Commit Paint to Active Layers");
             
             if (ImGui.Button(commitLabel))
             {
@@ -635,7 +642,7 @@ namespace DragAndDropTexturing.Windows
             ImGui.SameLine();
             if (ImGui.Button(Translator.LocalizeUI("Export 16-Bit TIFF")))
             {
-                _fileDialogManager.SaveFileDialog("Save 16-Bit TIFF", ".tif", "conversion_map.tif", "tif", (b, s) => {
+                _fileDialogManager.SaveFileDialog(Translator.LocalizeUI("Save 16-Bit TIFF"), ".tif", "conversion_map.tif", "tif", (b, s) => {
                     if (b) Save16BitTiff(s);
                 });
             }
@@ -651,18 +658,19 @@ namespace DragAndDropTexturing.Windows
             if (EditSourcePath != null)
             {
                 ImGui.SameLine();
-                ImGui.TextColored(new Vector4(0.5f, 1f, 0.5f, 1f), $"Editing: {Path.GetFileName(EditSourcePath)}");
+                ImGui.TextColored(new Vector4(0.5f, 1f, 0.5f, 1f), Translator.LocalizeUI("Editing:") + $" {Path.GetFileName(EditSourcePath)}");
             }
             else
             {
                 ImGui.SameLine();
                 ImGui.SetNextItemWidth(120);
-                if (ImGui.BeginCombo("Layer Type", _newLayerType))
+                if (ImGui.BeginCombo(Translator.LocalizeUI("Layer Type"), _newLayerType == "Normal" ? Translator.LocalizeUI("Normal Map") : Translator.LocalizeUI(_newLayerType)))
                 {
                     foreach (var type in _newLayerTypes)
                     {
                         bool isSelected = (_newLayerType == type);
-                        if (ImGui.Selectable(type, isSelected))
+                        string typeLabel = type == "Normal" ? Translator.LocalizeUI("Normal Map") : Translator.LocalizeUI(type);
+                        if (ImGui.Selectable(typeLabel, isSelected))
                         {
                             if (_newLayerType != type)
                             {
@@ -726,7 +734,12 @@ namespace DragAndDropTexturing.Windows
                 ImGui.Separator();
                 if (ImGui.TreeNode(Translator.LocalizeUI("Preview Mesh & UV Bridge")))
                 {
-                    string[] previewModeLabels = { "Match Texture UV", "Match Worn Body", "Pick Body Mod" };
+                    string[] previewModeLabels =
+                    {
+                        Translator.LocalizeUI("Match Texture UV"),
+                        Translator.LocalizeUI("Match Worn Body"),
+                        Translator.LocalizeUI("Pick Body Mod")
+                    };
                     int previewModeIdx = (int)_previewMeshMode;
                     if (ImGui.Combo(Translator.LocalizeUI("Preview Mesh"), ref previewModeIdx, previewModeLabels, previewModeLabels.Length))
                     {
@@ -760,7 +773,7 @@ namespace DragAndDropTexturing.Windows
                     }
 
                     if (_transparentSkinPreview)
-                        ImGui.TextDisabled("Shows paint layer only, skin and companion body meshes hidden.");
+                        ImGui.TextDisabled(Translator.LocalizeUI("Shows paint layer only, skin and companion body meshes hidden."));
 
                     if (ImGui.Checkbox(Translator.LocalizeUI("Overlay preview on character"), ref _overlayOnCharacter))
                     {
@@ -769,7 +782,7 @@ namespace DragAndDropTexturing.Windows
                     }
                     if (_overlayOnCharacter)
                     {
-                        ImGui.TextDisabled("Syncs game camera and draws paint preview over the target character.");
+                        ImGui.TextDisabled(Translator.LocalizeUI("Syncs game camera and draws paint preview over the target character."));
                         ImGui.SetNextItemWidth(200f);
                         if (ImGui.DragFloat(Translator.LocalizeUI("Overlay height fine-tune"), ref _overlayScaleFineTune, 0.0005f, -0.05f, 0.05f, "%+.4f"))
                         {
@@ -777,7 +790,7 @@ namespace DragAndDropTexturing.Windows
                             _plugin.Configuration.Save();
                         }
                         if (ImGui.IsItemHovered())
-                            ImGui.SetTooltip("Vertical nudge on skeleton->Transform scale (Ktisis root). Height/customize is already in skeleton transform.");
+                            ImGui.SetTooltip(Translator.LocalizeUI("Vertical nudge on skeleton->Transform scale (Ktisis root). Height/customize is already in skeleton transform."));
                         ImGui.SetNextItemWidth(200f);
                         if (ImGui.DragFloat(Translator.LocalizeUI("Overlay width fine-tune"), ref _overlayWidthFineTune, 0.0005f, -0.20f, 0.05f, "%+.4f"))
                         {
@@ -785,7 +798,7 @@ namespace DragAndDropTexturing.Windows
                             _plugin.Configuration.Save();
                         }
                         if (ImGui.IsItemHovered())
-                            ImGui.SetTooltip("Shoulder span (X/Z on skeleton->Transform scale). Negative narrows, positive widens.");
+                            ImGui.SetTooltip(Translator.LocalizeUI("Shoulder span (X/Z on skeleton->Transform scale). Negative narrows, positive widens."));
                         if (ImGui.Button(Translator.LocalizeUI("Reset##overlayScale")))
                         {
                             _overlayScaleFineTune = 0f;
@@ -797,35 +810,35 @@ namespace DragAndDropTexturing.Windows
 
                         ImGui.SetNextItemWidth(260f);
                         if (ImGui.Combo(Translator.LocalizeUI("Bind experiment (live)"), ref _overlayBindExperiment,
-                                "ReferencePose (safe)\0sklb inv×current\0sklb current×inv\0sklb transpose inv×current\0sklb current×transpose inv\0"))
+                                Translator.LocalizeUI("ReferencePose (safe)") + "\0sklb inv×current\0sklb current×inv\0sklb transpose inv×current\0sklb current×transpose inv\0"))
                         {
                             _plugin.Configuration.PainterOverlayBindExperiment = _overlayBindExperiment;
                             _plugin.Configuration.Save();
                         }
                         if (_overlayBindExperiment != 0)
-                            ImGui.TextColored(new Vector4(1f, 0.6f, 0.2f, 1f), "Experiment active, revert to ReferencePose if mesh crumples or misaligns.");
+                            ImGui.TextColored(new Vector4(1f, 0.6f, 0.2f, 1f), Translator.LocalizeUI("Experiment active, revert to ReferencePose if mesh crumples or misaligns."));
                     }
 
                     string canvasLabel = _canvasUvKeyword ?? _targetKeyword ?? "?";
                     string previewLabel = _previewMeshKeyword ?? "?";
                     if (_uvBridge.IsActive)
                     {
-                        ImGui.TextColored(new Vector4(0.4f, 0.9f, 0.5f, 1f), $"UV bridge active: painting {canvasLabel} canvas on {previewLabel} preview");
+                        ImGui.TextColored(new Vector4(0.4f, 0.9f, 0.5f, 1f), Translator.LocalizeUI("UV bridge active: painting") + $" {canvasLabel} " + Translator.LocalizeUI("canvas on") + $" {previewLabel} " + Translator.LocalizeUI("preview"));
                         if (!string.IsNullOrEmpty(_uvBridge.ForwardMapPath))
-                            ImGui.TextWrapped($"Display map: {System.IO.Path.GetFileName(_uvBridge.ForwardMapPath)}");
+                            ImGui.TextWrapped(Translator.LocalizeUI("Display map:") + $" {System.IO.Path.GetFileName(_uvBridge.ForwardMapPath)}");
                     }
                     else if (!string.Equals(canvasLabel, previewLabel, StringComparison.OrdinalIgnoreCase) && canvasLabel != "?" && previewLabel != "?")
                     {
                         string lookupHint = _uvBridge.LastLookupPath;
                         if (!string.IsNullOrEmpty(lookupHint))
-                            ImGui.TextColored(new Vector4(1f, 0.7f, 0.3f, 1f), $"No transfer map: {canvasLabel} -> {previewLabel}");
+                            ImGui.TextColored(new Vector4(1f, 0.7f, 0.3f, 1f), Translator.LocalizeUI("No transfer map:") + $" {canvasLabel} -> {previewLabel}");
                         else
-                            ImGui.TextColored(new Vector4(1f, 0.7f, 0.3f, 1f), $"Canvas ({canvasLabel}) and preview ({previewLabel}) differ, no transfer map found");
+                            ImGui.TextColored(new Vector4(1f, 0.7f, 0.3f, 1f), Translator.LocalizeUI("Canvas") + $" ({canvasLabel}) " + Translator.LocalizeUI("and preview") + $" ({previewLabel}) " + Translator.LocalizeUI("differ, no transfer map found"));
                         if (!string.IsNullOrEmpty(lookupHint))
-                            ImGui.TextWrapped($"Expected: {lookupHint}");
+                            ImGui.TextWrapped(Translator.LocalizeUI("Expected:") + $" {lookupHint}");
                     }
                     else
-                        ImGui.TextDisabled($"Canvas UV: {canvasLabel}  |  Preview mesh: {previewLabel}");
+                        ImGui.TextDisabled(Translator.LocalizeUI("Canvas UV:") + $" {canvasLabel}  |  " + Translator.LocalizeUI("Preview mesh:") + $" {previewLabel}");
 
                     ImGui.TreePop();
                 }
@@ -899,23 +912,25 @@ namespace DragAndDropTexturing.Windows
                     float projDepth = _floatingLayer.ProjectionDepth;
                     float displayDepth = projDepth > 0f ? projDepth : _floatingLayer.Scale.X * 2.0f;
                     bool isAuto = projDepth <= 0f;
-                    string depthLabel = isAuto ? $"Projection Depth (Auto: {displayDepth:F2})" : "Projection Depth";
+                    string depthLabel = isAuto
+                        ? Translator.LocalizeUI("Projection Depth") + $" ({Translator.LocalizeUI("Auto")}: {displayDepth:F2})"
+                        : Translator.LocalizeUI("Projection Depth");
                     if (ImGui.SliderFloat(depthLabel, ref displayDepth, 0.05f, 5.0f, "%.2f"))
                         _floatingLayer.ProjectionDepth = displayDepth;
                     ImGui.SameLine();
-                    if (ImGui.Button(isAuto ? "Manual" : "Auto"))
+                    if (ImGui.Button(isAuto ? Translator.LocalizeUI("Manual") : Translator.LocalizeUI("Auto")))
                         _floatingLayer.ProjectionDepth = isAuto ? displayDepth : 0f;
                 }
 
                 // Rotation slider (degrees for UI, stored as radians)
                 float rotDeg = _floatingLayer.Rotation * (180f / (float)Math.PI);
-                if (ImGui.SliderFloat("Rotation", ref rotDeg, -180f, 180f, "%.1f°"))
+                if (ImGui.SliderFloat(Translator.LocalizeUI("Rotation"), ref rotDeg, -180f, 180f, "%.1f°"))
                 {
                     _floatingLayer.Rotation = rotDeg * ((float)Math.PI / 180f);
                     _needsComposite = true;
                 }
                 ImGui.SameLine();
-                if (ImGui.Button("Reset##rot"))
+                if (ImGui.Button(Translator.LocalizeUI("Reset") + "##rot"))
                 {
                     _floatingLayer.Rotation = 0f;
                     _needsComposite = true;
@@ -994,10 +1009,10 @@ namespace DragAndDropTexturing.Windows
                 {
                     ImGui.SameLine();
                     ImGui.SetNextItemWidth(250f);
-                    string preview = string.IsNullOrEmpty(_selectedMaterial) ? "Auto-Detect Material" : _selectedMaterial;
+                    string preview = string.IsNullOrEmpty(_selectedMaterial) ? Translator.LocalizeUI("Auto-Detect Material") : _selectedMaterial;
                     if (ImGui.BeginCombo("##materialSelector", preview))
                     {
-                        if (ImGui.Selectable("Auto-Detect Material", string.IsNullOrEmpty(_selectedMaterial)))
+                        if (ImGui.Selectable(Translator.LocalizeUI("Auto-Detect Material"), string.IsNullOrEmpty(_selectedMaterial)))
                         {
                             _selectedMaterial = null;
                             _renderer?.PushUndoSnapshot();
@@ -1020,7 +1035,7 @@ namespace DragAndDropTexturing.Windows
                         }
                         ImGui.EndCombo();
                     }
-                    if (ImGui.IsItemHovered()) ImGui.SetTooltip("Force the painter to bind to a specific material layer (bypassing filename auto-detection).");
+                    if (ImGui.IsItemHovered()) ImGui.SetTooltip(Translator.LocalizeUI("Force the painter to bind to a specific material layer (bypassing filename auto-detection)."));
                 }
 
                 ImGui.Separator();
@@ -1043,7 +1058,7 @@ namespace DragAndDropTexturing.Windows
 
                 if (_overlayOnCharacter)
                 {
-                    ImGui.TextDisabled("Preview projected onto character in-world (see overlay).");
+                    ImGui.TextDisabled(Translator.LocalizeUI("Preview projected onto character in-world (see overlay)."));
                 }
                 else
                 {

@@ -34,7 +34,7 @@ namespace DragAndDropTexturing.Windows
         private bool _isDragging = false;
         private bool _isPanning = false;
 
-        public MdlPreviewWindow() : base("3D Model Preview", ImGuiWindowFlags.NoScrollbar)
+        public MdlPreviewWindow() : base("3D Model Preview###DDTMdlPreview", ImGuiWindowFlags.NoScrollbar)
         {
             Size = new Vector2(800, 600);
             SizeCondition = ImGuiCond.FirstUseEver;
@@ -102,6 +102,7 @@ namespace DragAndDropTexturing.Windows
 
         public override void Draw()
         {
+            WindowName = Translator.LocalizeUI("3D Model Preview") + "###DDTMdlPreview";
             if (!_rendererInitialized && _errorMessage == null)
             {
                 try
@@ -117,7 +118,7 @@ namespace DragAndDropTexturing.Windows
 
             if (_errorMessage != null)
             {
-                ImGui.TextColored(new Vector4(1, 0, 0, 1), "Failed to initialize D3D11 Renderer:");
+                ImGui.TextColored(new Vector4(1, 0, 0, 1), Translator.LocalizeUI("Failed to initialize D3D11 Renderer:"));
                 ImGui.TextWrapped(_errorMessage);
                 return;
             }
@@ -127,16 +128,16 @@ namespace DragAndDropTexturing.Windows
             // UI to load models
             foreach (var slot in _slots)
             {
-                if (ImGui.CollapsingHeader(slot.Name + " Slot", ImGuiTreeNodeFlags.DefaultOpen))
+                if (ImGui.CollapsingHeader(Translator.LocalizeUI(slot.Name) + " " + Translator.LocalizeUI("Slot"), ImGuiTreeNodeFlags.DefaultOpen))
                 {
-                    ImGui.InputText($"Model Path##{slot.Name}", ref slot.ModelPath, 1024);
+                    ImGui.InputText(Translator.LocalizeUI("Model Path") + $"##{slot.Name}", ref slot.ModelPath, 1024);
                     if (ImGui.Button(Translator.LocalizeUI("Load Game Path") + $"##{slot.Name}")) LoadModel(slot, false);
                     ImGui.SameLine();
                     if (ImGui.Button(Translator.LocalizeUI("Load From Disk") + $"##{slot.Name}")) LoadModel(slot, true);
 
-                    if (!string.IsNullOrEmpty(slot.LoadStatus)) ImGui.TextWrapped(slot.LoadStatus);
+                    if (!string.IsNullOrEmpty(slot.LoadStatus)) ImGui.TextWrapped(Translator.LocalizeExportStatus(slot.LoadStatus));
 
-                    ImGui.InputText($"Texture Path##{slot.Name}", ref slot.TexturePath, 1024);
+                    ImGui.InputText(Translator.LocalizeUI("Texture Path") + $"##{slot.Name}", ref slot.TexturePath, 1024);
                     if (ImGui.Button(Translator.LocalizeUI("Load Texture") + $"##{slot.Name}")) LoadTextureFromDisk(slot);
                     ImGui.SameLine();
                     if (ImGui.Button(Translator.LocalizeUI("Clear Texture") + $"##{slot.Name}"))
@@ -163,10 +164,10 @@ namespace DragAndDropTexturing.Windows
                     if (_renderer != null && _renderer.HasTexture(slot.Name))
                     {
                         ImGui.SameLine();
-                        ImGui.TextColored(new Vector4(0.3f, 1f, 0.3f, 1f), "[Textured]");
+                        ImGui.TextColored(new Vector4(0.3f, 1f, 0.3f, 1f), Translator.LocalizeUI("[Textured]"));
                     }
 
-                    if (!string.IsNullOrEmpty(slot.TextureStatus)) ImGui.TextWrapped(slot.TextureStatus);
+                    if (!string.IsNullOrEmpty(slot.TextureStatus)) ImGui.TextWrapped(Translator.LocalizeExportStatus(slot.TextureStatus));
                 }
             }
 
@@ -176,7 +177,7 @@ namespace DragAndDropTexturing.Windows
             {
                 ImGui.SameLine();
                 bool ortho = _renderer.UseOrthographic;
-                if (ImGui.Button(ortho ? "Orthographic" : "Perspective")) _renderer.UseOrthographic = !ortho;
+                if (ImGui.Button(ortho ? Translator.LocalizeUI("Orthographic") : Translator.LocalizeUI("Perspective"))) _renderer.UseOrthographic = !ortho;
             }
 
             ImGui.Spacing();

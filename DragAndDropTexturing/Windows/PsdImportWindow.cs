@@ -61,7 +61,7 @@ namespace DragAndDropTexturing.Windows
         private readonly string[] _overrideTypes = { "Base", "Normal" };
         private readonly string[] _bodyTypes = { "None", "Bibo+", "Gen3", "TBSE", "Otopop", "Vanilla" };
 
-        public PsdImportWindow(Plugin plugin) : base("PSD Import Manager", ImGuiWindowFlags.NoScrollbar)
+        public PsdImportWindow(Plugin plugin) : base("PSD Import Manager###DDTPsdImport", ImGuiWindowFlags.NoScrollbar)
         {
             _plugin = plugin;
             Size = new Vector2(800, 400);
@@ -187,6 +187,7 @@ namespace DragAndDropTexturing.Windows
 
         public override void Draw()
         {
+            WindowName = Translator.LocalizeUI("PSD Import Manager") + "###DDTPsdImport";
             try
             {
                 if (!_rendererInitialized)
@@ -200,7 +201,7 @@ namespace DragAndDropTexturing.Windows
 
             if (_isProcessing)
             {
-                ImGui.Text(_statusText);
+                ImGui.Text(Translator.LocalizeExportStatus(_statusText));
                 ImGui.ProgressBar(_progress, new Vector2(-1, 0));
                 return;
             }
@@ -216,7 +217,7 @@ namespace DragAndDropTexturing.Windows
             ImGui.SetColumnWidth(0, ImGui.GetWindowWidth() * 0.65f);
 
             var locBodyParts = Translator.LocalizeTextArray(_bodyParts);
-            var locOverrideTypes = Translator.LocalizeTextArray(_overrideTypes);
+            var locOverrideTypes = _overrideTypes.Select(t => t == "Normal" ? Translator.LocalizeUI("Normal Map") : Translator.LocalizeUI(t)).ToArray();
             var locBodyTypes = Translator.LocalizeTextArray(_bodyTypes);
 
             ImGui.Text(Translator.LocalizeUI("Select layers to import:"));

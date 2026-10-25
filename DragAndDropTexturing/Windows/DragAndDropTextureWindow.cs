@@ -849,32 +849,33 @@ namespace RoleplayingVoice
             {
                 if (_showClassificationPopup)
                 {
-                    ImGui.OpenPopup("Identify Texture Format");
+                    string classifyPopupId = Translator.LocalizeUI("Identify Texture Format");
+                    ImGui.OpenPopup(classifyPopupId);
                     Vector2 center = ImGui.GetMainViewport().GetCenter();
                     ImGui.SetNextWindowPos(center, ImGuiCond.Appearing, new Vector2(0.5f, 0.5f));
-                    if (ImGui.BeginPopupModal("Identify Texture Format", ref _showClassificationPopup, ImGuiWindowFlags.AlwaysAutoResize))
+                    if (ImGui.BeginPopupModal(classifyPopupId, ref _showClassificationPopup, ImGuiWindowFlags.AlwaysAutoResize))
                     {
-                        ImGui.Text("The dropped texture could not be automatically identified.");
-                        ImGui.Text($"File: {Path.GetFileName(_fileToClassify)}");
+                        ImGui.Text(Translator.LocalizeUI("The dropped texture could not be automatically identified."));
+                        ImGui.Text(Translator.LocalizeUI("File:") + $" {Path.GetFileName(_fileToClassify)}");
                         ImGui.Separator();
 
                         // Always allow target reassignment
-                        ImGui.Text("1. Select Target / UV Layout:");
+                        ImGui.Text(Translator.LocalizeUI("1. Select Target / UV Layout:"));
                         ImGui.RadioButton("Bibo+", ref _classificationSelectedUV, 0); ImGui.SameLine();
                         ImGui.RadioButton("Gen3", ref _classificationSelectedUV, 1); ImGui.SameLine();
                         ImGui.RadioButton("TBSE", ref _classificationSelectedUV, 2); ImGui.SameLine();
                         ImGui.RadioButton("Gen2 / Vanilla", ref _classificationSelectedUV, 3); ImGui.SameLine();
-                        ImGui.RadioButton("Face", ref _classificationSelectedUV, 4);
+                        ImGui.RadioButton(Translator.LocalizeUI("Face"), ref _classificationSelectedUV, 4);
                         ImGui.Spacing();
 
-                        ImGui.Text("2. Select Texture Map Type:");
-                        ImGui.RadioButton("Base / Diffuse", ref _classificationSelectedMap, 0); ImGui.SameLine();
-                        ImGui.RadioButton("Normal Map", ref _classificationSelectedMap, 1); ImGui.SameLine();
-                        ImGui.RadioButton("Mask", ref _classificationSelectedMap, 2); ImGui.SameLine();
-                        ImGui.RadioButton("Glow", ref _classificationSelectedMap, 3);
+                        ImGui.Text(Translator.LocalizeUI("2. Select Texture Map Type:"));
+                        ImGui.RadioButton(Translator.LocalizeUI("Base / Diffuse"), ref _classificationSelectedMap, 0); ImGui.SameLine();
+                        ImGui.RadioButton(Translator.LocalizeUI("Normal Map"), ref _classificationSelectedMap, 1); ImGui.SameLine();
+                        ImGui.RadioButton(Translator.LocalizeUI("Mask"), ref _classificationSelectedMap, 2); ImGui.SameLine();
+                        ImGui.RadioButton(Translator.LocalizeUI("Glow"), ref _classificationSelectedMap, 3);
 
                         ImGui.Separator();
-                        if (ImGui.Button("Confirm", new Vector2(120, 0)))
+                        if (ImGui.Button(Translator.LocalizeUI("Confirm"), new Vector2(120, 0)))
                         {
                             string uv = _classificationSelectedUV == 0 ? "bibo" : _classificationSelectedUV == 1 ? "gen3" : _classificationSelectedUV == 2 ? "tbse" : _classificationSelectedUV == 3 ? "gen2" : "face";
                             string map = _classificationSelectedMap == 0 ? "base" : _classificationSelectedMap == 1 ? "norm" : _classificationSelectedMap == 2 ? "mask" : "glow";
@@ -882,7 +883,7 @@ namespace RoleplayingVoice
                             _showClassificationPopup = false;
                         }
                         ImGui.SameLine();
-                        if (ImGui.Button("Cancel", new Vector2(120, 0)))
+                        if (ImGui.Button(Translator.LocalizeUI("Cancel"), new Vector2(120, 0)))
                         {
                             _classificationTcs?.TrySetResult("");
                             _showClassificationPopup = false;
@@ -957,12 +958,12 @@ namespace RoleplayingVoice
                     ImGui.BeginChild("LoadingBox", new Vector2(300, 40), true, ImGuiWindowFlags.NoScrollbar);
                     if (_textureProcessor != null && _textureProcessor.ExportMax > 0 && !_isRegenerationPending)
                     {
-                        ImGui.ProgressBar(_textureProcessor.ExportCompletion / (float)_textureProcessor.ExportMax, new Vector2(-1, 0), _exportStatus);
+                        ImGui.ProgressBar(_textureProcessor.ExportCompletion / (float)_textureProcessor.ExportMax, new Vector2(-1, 0), Translator.LocalizeExportStatus(_exportStatus));
                     }
                     else
                     {
                         float bounce = (float)Math.Abs(Math.Sin(ImGui.GetTime() * 2.0));
-                        ImGui.ProgressBar(bounce, new Vector2(-1, 0), _exportStatus);
+                        ImGui.ProgressBar(bounce, new Vector2(-1, 0), Translator.LocalizeExportStatus(_exportStatus));
                     }
                     ImGui.EndChild();
                 }
@@ -1219,7 +1220,7 @@ namespace RoleplayingVoice
                             {
                                 Plugin.Framework.RunOnFrameworkThread(() =>
                                 {
-                                    plugin.Chat.Print("[Drag And Drop Texturing] Export in progress, your drop has been queued and will process automatically.");
+                                    plugin.Chat.Print(Translator.LocalizeUI("[Drag And Drop Texturing] Export in progress, your drop has been queued and will process automatically."));
                                 });
                             }
                             catch { }
@@ -1816,7 +1817,7 @@ namespace RoleplayingVoice
                                     {
                                         Plugin.Framework.RunOnFrameworkThread(() =>
                                         {
-                                            plugin.Chat.PrintError("[Drag And Drop Texturing] Unable to identify texture type! If its a transparent texture please include descriptors in the file name (IE: filename_bibo_base.png, filename_gen3_base.png, filename_gen2_base.png, etc)");
+                                            plugin.Chat.PrintError(Translator.LocalizeUI("[Drag And Drop Texturing] Unable to identify texture type! If its a transparent texture please include descriptors in the file name (IE: filename_bibo_base.png, filename_gen3_base.png, filename_gen2_base.png, etc)"));
                                         });
                                     }
                                 }
@@ -4030,7 +4031,7 @@ namespace RoleplayingVoice
             targetCharacter ??= plugin.SafeGameObjectManager.LocalPlayer as ICharacter;
             if (targetCharacter == null)
             {
-                plugin.Chat.PrintError("[Drag And Drop Texturing] No target character, cannot import worn gear.");
+                plugin.Chat.PrintError(Translator.LocalizeUI("[Drag And Drop Texturing] No target character, cannot import worn gear."));
                 return;
             }
 
@@ -4041,7 +4042,7 @@ namespace RoleplayingVoice
 
             if (string.IsNullOrEmpty(pngPath))
             {
-                plugin.Chat.PrintError($"[Drag And Drop Texturing] Could not read texture for {piece.DisplayName}.");
+                plugin.Chat.PrintError(Translator.LocalizeUI("[Drag And Drop Texturing] Could not read texture for") + $" {piece.DisplayName}.");
                 return;
             }
 
@@ -4089,7 +4090,7 @@ namespace RoleplayingVoice
             plugin.Configuration.Save();
             UpdateWatchers();
             RebuildCategory(categoryKey, false);
-            plugin.Chat.Print($"[Drag And Drop Texturing] Imported worn gear layer: {piece.DisplayName}");
+            plugin.Chat.Print(Translator.LocalizeUI("[Drag And Drop Texturing] Imported worn gear layer:") + $" {piece.DisplayName}");
         }
 
         private void ApplyDefaultSkinType(TextureSet item)

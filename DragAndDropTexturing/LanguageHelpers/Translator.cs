@@ -1,6 +1,7 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -8,30 +9,32 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using DragAndDropTexturing.LanguageHelpers;
+using FFXIVLooseTextureCompiler.PathOrganization;
 
 namespace DragAndDropTexturing.LanguageHelpers
 {
-
-    public enum LanguageEnum
-    {
-        English = 0,
-        French = 1,
-        German = 2,
-        Japanese = 3,
-        Chinese = 4,
-        Korean = 5,
-        Swedish = 6,
-    }
     /// <summary>
-    /// UI translation via RoleplayingQuestCore-compatible proxy.
-    /// Requests are serialized through a single queue so only one hits the server at a time.
+    /// UI translation. Baked zh.json is the source of truth for Chinese;
+    /// optional RoleplayingQuestCore proxy is off by default.
     /// </summary>
     public static class Translator
     {
         private static readonly ConcurrentDictionary<int, ConcurrentDictionary<string, string>> Dictionary = new();
+        private static readonly ConcurrentDictionary<string, byte> BakedKeys = new();
         private static readonly ConcurrentQueue<TranslationWorkItem> WorkQueue = new();
         private static readonly ConcurrentDictionary<string, byte> PendingKeys = new();
+
+        private static readonly string[] ExportStatusPrefixes =
+        {
+            "Merging Layers",
+            "UV Transfer Batching",
+            "Hashing",
+            "Extracting layer",
+            "Loaded",
+            "Texture loaded",
+            "Texture load error",
+            "Error",
+        };
 
         private static readonly HttpClient HttpClient = CreateHttpClient();
 
@@ -56,9 +59,10 @@ namespace DragAndDropTexturing.LanguageHelpers
             "Svenska",
         };
 
-        private static LanguageEnum _uiLanguage = LanguageEnum.English;
+        private static LanguageEnum _uiLanguage = LanguageEnum.Chinese;
         private static string _cacheLocation = string.Empty;
         private static string _serverUrl = "http://ai.hubujubu.com:5681";
+        private static bool _enableOnlineTranslation;
 
         private static int _queueWorkerRunning;
         private static int _activeRequestCount;
@@ -72,6 +76,12 @@ namespace DragAndDropTexturing.LanguageHelpers
         public static string ServerUrlDisplay => _serverUrl;
 
         public static string[] LanguageStringsDisplay => LanguageStrings;
+
+        public static bool EnableOnlineTranslation
+        {
+            get => _enableOnlineTranslation;
+            set => _enableOnlineTranslation = value;
+        }
 
         public static LanguageEnum UiLanguage
         {
@@ -92,6 +102,25 @@ namespace DragAndDropTexturing.LanguageHelpers
         public static bool ServerRespondedSuccessfully { get; private set; }
         public static int PendingRequestCount => WorkQueue.Count + _activeRequestCount;
 
+        public static LanguageEnum DetectFromClientLanguage(Dalamud.Game.ClientLanguage language)
+        {
+            return language switch
+            {
+                Dalamud.Game.ClientLanguage.Japanese => LanguageEnum.Japanese,
+                Dalamud.Game.ClientLanguage.French => LanguageEnum.French,
+                Dalamud.Game.ClientLanguage.German => LanguageEnum.German,
+                _ => LanguageEnum.Chinese,
+            };
+        }
+
+        public static void ApplyFromConfiguration(int languageOverride, Dalamud.Game.ClientLanguage clientLanguage)
+        {
+            UiLanguage = languageOverride >= 0
+                ? (LanguageEnum)languageOverride
+                : DetectFromClientLanguage(clientLanguage);
+            TextureSet.GroupLocalization = LocalizeUI("Group");
+        }
+
         public static int GetCachedCount(LanguageEnum language)
         {
             int languageId = (int)language;
@@ -100,10 +129,56 @@ namespace DragAndDropTexturing.LanguageHelpers
 
         public static void ClearLastError() => LastErrorMessage = string.Empty;
 
+        public static void LoadEmbeddedCatalog()
+        {
+            try
+            {
+                var assembly = typeof(Translator).Assembly;
+                using Stream? stream = assembly.GetManifestResourceStream("DragAndDropTexturing.Localization.zh.json");
+                if (stream == null)
+                {
+                    return;
+                }
+
+                using var reader = new StreamReader(stream, Encoding.UTF8);
+                var map = JsonConvert.DeserializeObject<Dictionary<string, string>>(reader.ReadToEnd());
+                if (map == null)
+                {
+                    return;
+                }
+
+                int languageId = (int)LanguageEnum.Chinese;
+                if (!Dictionary.ContainsKey(languageId))
+                {
+                    Dictionary[languageId] = new ConcurrentDictionary<string, string>();
+                }
+
+                foreach (var pair in map)
+                {
+                    if (string.IsNullOrWhiteSpace(pair.Key) || string.IsNullOrWhiteSpace(pair.Value))
+                    {
+                        continue;
+                    }
+
+                    Dictionary[languageId][pair.Key] = pair.Value;
+                    BakedKeys[pair.Key] = 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                OnError?.Invoke(null, ex);
+            }
+        }
+
         public static async Task ProbeServerAsync()
         {
             ClearLastError();
             ServerRespondedSuccessfully = false;
+            if (!_enableOnlineTranslation)
+            {
+                return;
+            }
+
             try
             {
                 await LocalizeTextAsync("General", _uiLanguage, LanguageEnum.English);
@@ -127,12 +202,31 @@ namespace DragAndDropTexturing.LanguageHelpers
             {
                 var loaded = JsonConvert.DeserializeObject<ConcurrentDictionary<int, ConcurrentDictionary<string, string>>>(
                     File.ReadAllText(_cacheLocation));
-                if (loaded != null)
+                if (loaded == null)
                 {
-                    Dictionary.Clear();
-                    foreach (var pair in loaded)
+                    return;
+                }
+
+                foreach (var pair in loaded)
+                {
+                    if (!Dictionary.ContainsKey(pair.Key))
                     {
-                        Dictionary[pair.Key] = pair.Value;
+                        Dictionary[pair.Key] = new ConcurrentDictionary<string, string>();
+                    }
+
+                    foreach (var translation in pair.Value)
+                    {
+                        if (string.IsNullOrWhiteSpace(translation.Value))
+                        {
+                            continue;
+                        }
+
+                        if (pair.Key == (int)LanguageEnum.Chinese && BakedKeys.ContainsKey(translation.Key))
+                        {
+                            continue;
+                        }
+
+                        Dictionary[pair.Key][translation.Key] = translation.Value;
                     }
                 }
             }
@@ -140,6 +234,28 @@ namespace DragAndDropTexturing.LanguageHelpers
             {
                 OnError?.Invoke(null, ex);
             }
+        }
+
+        public static string LocalizeExportStatus(string? status)
+        {
+            if (string.IsNullOrEmpty(status))
+            {
+                return status ?? string.Empty;
+            }
+
+            foreach (string prefix in ExportStatusPrefixes)
+            {
+                if (status.StartsWith(prefix, StringComparison.Ordinal) && status.Length > prefix.Length)
+                {
+                    char next = status[prefix.Length];
+                    if (next == ' ' || next == ':')
+                    {
+                        return LocalizeUI(prefix) + status[prefix.Length..];
+                    }
+                }
+            }
+
+            return LocalizeUI(status);
         }
 
         public static async Task<string> LocalizeTextAsync(string translationValue, LanguageEnum userLanguage, LanguageEnum textLanguage)
@@ -159,6 +275,11 @@ namespace DragAndDropTexturing.LanguageHelpers
             if (!string.IsNullOrWhiteSpace(cachedTranslation))
             {
                 return cachedTranslation;
+            }
+
+            if (!_enableOnlineTranslation)
+            {
+                return translationValue;
             }
 
             return await EnqueueAndWaitAsync(translationValue, userLanguage, textLanguage);
@@ -200,7 +321,10 @@ namespace DragAndDropTexturing.LanguageHelpers
                     return cachedTranslation + (uiText.Length > 1 ? "##" + uiText[1] : "");
                 }
 
-                EnqueueFireAndForget(translationValue, userLanguage, textLanguage);
+                if (_enableOnlineTranslation)
+                {
+                    EnqueueFireAndForget(translationValue, userLanguage, textLanguage);
+                }
             }
             catch (Exception ex)
             {
@@ -225,6 +349,11 @@ namespace DragAndDropTexturing.LanguageHelpers
 
         private static void EnqueueFireAndForget(string text, LanguageEnum userLanguage, LanguageEnum textLanguage)
         {
+            if (!_enableOnlineTranslation)
+            {
+                return;
+            }
+
             if (!TryEnqueue(new TranslationWorkItem
             {
                 Text = text,
@@ -366,6 +495,11 @@ namespace DragAndDropTexturing.LanguageHelpers
             {
                 ReportError(new InvalidOperationException("Translation server returned an empty response."));
                 return translationValue;
+            }
+
+            if (languageId == (int)LanguageEnum.Chinese && BakedKeys.ContainsKey(translationValue))
+            {
+                return GetCachedTranslation(translationValue, languageId) ?? translationValue;
             }
 
             if (!Dictionary.ContainsKey(languageId))

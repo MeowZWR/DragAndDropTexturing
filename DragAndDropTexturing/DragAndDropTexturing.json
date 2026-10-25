@@ -1,8 +1,8 @@
 {
     "Author": "Sebby",
     "Name": "Drag And Drop Texturing",
-    "Punchline": "Drag and drop textures directly into the game.",
-    "Description": "Drag and drop textures directly into the game.",
+    "Punchline": "把贴图直接拖进游戏。",
+    "Description": "把透明叠加、漫反射或 PSD 直接拖放到角色身体或面部。自动识别身体类型并转换为兼容贴图，可叠加 Bibo、Gen3、Gen2，并支持 Proteus 与 Onion 图层。",
     "ApplicableVersion": "any",
     "Tags": [
         "penumbra",

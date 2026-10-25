@@ -123,7 +123,7 @@ public sealed class OnionLayerModManager : IDisposable
         if (mod == null)
         {
             _plugin.PluginLog.Error($"[Onion] Import failed for '{filePath}': {error}");
-            _plugin.Chat.PrintError($"[DDT] Onion import failed: {error}");
+            _plugin.Chat.PrintError("[DDT] " + DragAndDropTexturing.LanguageHelpers.Translator.LocalizeUI("Onion import failed:") + $" {error}");
             return null;
         }
 

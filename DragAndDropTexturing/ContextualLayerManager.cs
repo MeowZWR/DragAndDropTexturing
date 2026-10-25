@@ -724,7 +724,7 @@ namespace DragAndDropTexturing
             if (_headlessPaintWindow != null && _headlessPaintWindow.IsOpen) return _headlessPaintWindow;
 
             var window = new Windows.TexturePaintingWindow(_plugin);
-            window.WindowName = $"Texture Painter (Headless Debug)###HeadlessPainter_{Guid.NewGuid()}";
+            window.WindowName = DragAndDropTexturing.LanguageHelpers.Translator.LocalizeUI("Texture Painter") + $" (Headless Debug)###HeadlessPainter_{Guid.NewGuid()}";
             window.IsHeadlessMode = true;
             window.IsOpen = true;
             _plugin.TexturePaintingWindows.Add(window);
