@@ -63,6 +63,7 @@ jobs:
           name: DragAndDropTexturing ${{ github.ref_name }}
           artifacts: "./DragAndDropTexturing/bin/x64/*.zip"
           tag: ${{ github.ref_name }}
+          prerelease: true
           body: "CN build of Drag And Drop Texturing. Do not install this manually. Install via the Dalamud plugin repo!"
           omitBodyDuringUpdate: true
           allowUpdates: true
