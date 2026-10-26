@@ -20,11 +20,11 @@
         "resolved": "2.8.0",
         "contentHash": "dCxycU+lA0qraE70ZoRvM4GQAPq/K+qL/bg6t/kxKPox5GWaiunKOTXNOG2hOvgEda5WtFy6e3c9OuIM6L3faQ=="
       },
-      "Magick.NET-Q8-AnyCPU": {
+      "Magick.NET-Q8-x64": {
         "type": "Direct",
         "requested": "[14.4.0, )",
         "resolved": "14.4.0",
-        "contentHash": "4f/6tga1izjCm29qGlPlTc7txquzd5cOgRFuCD6fh7tu+QS4Rd6gZpvRwrIb4e/Y0pE1JQyF2j4RRmQ23T8BLA==",
+        "contentHash": "24tpQEvA7LIL8FWqRGcnPf8rNCg4VPi5s/P0lqh6n9q3h4VVbH6NMG5m1MP+/7VcTGxomaxjoqHfHsZMC7UCKA==",
         "dependencies": {
           "Magick.NET.Core": "14.4.0"
         }
@@ -172,6 +172,17 @@
           "Newtonsoft.Json": "[13.0.3, )",
           "SixLabors.ImageSharp": "[3.1.8, )",
           "SixLabors.ImageSharp.Drawing": "[2.1.6, )"
+        }
+      }
+    },
+    "net10.0-windows7.0/win-x64": {
+      "Magick.NET-Q8-x64": {
+        "type": "Direct",
+        "requested": "[14.4.0, )",
+        "resolved": "14.4.0",
+        "contentHash": "24tpQEvA7LIL8FWqRGcnPf8rNCg4VPi5s/P0lqh6n9q3h4VVbH6NMG5m1MP+/7VcTGxomaxjoqHfHsZMC7UCKA==",
+        "dependencies": {
+          "Magick.NET.Core": "14.4.0"
         }
       }
     }
