@@ -14,6 +14,10 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Apply CN submodule patches
+        run: ./patches/apply.ps1
+        shell: pwsh
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:

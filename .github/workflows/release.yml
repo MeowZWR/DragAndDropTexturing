@@ -20,6 +20,10 @@ jobs:
           submodules: recursive
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Apply CN submodule patches
+        run: ./patches/apply.ps1
+        shell: pwsh
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:

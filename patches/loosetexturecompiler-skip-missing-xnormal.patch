@@ -1,0 +1,129 @@
+diff --git a/XNormal/FastUVTransfer.cs b/XNormal/FastUVTransfer.cs
+index 2639302..3db0c83 100644
+--- a/XNormal/FastUVTransfer.cs
++++ b/XNormal/FastUVTransfer.cs
+@@ -101,6 +101,26 @@ namespace FFXIVLooseTextureCompiler
+             return null;
+         }
+ 
++        public static string ResolveTransferMapPath(string transferMapFilename, string modDirectoryHint = null)
++        {
++            foreach (string baseDir in GlobalPathStorage.GetResourceBaseCandidates(modDirectoryHint))
++            {
++                string transferMapPath = Path.Combine(baseDir, "res", "fastuvtransfer", "body", transferMapFilename);
++                if (FFXIVLooseTextureCompiler.ImageProcessing.TexIO.Exists(transferMapPath))
++                {
++                    GlobalPathStorage.OriginalBaseDirectory = baseDir;
++                    return transferMapPath;
++                }
++            }
++
++            return null;
++        }
++
++        public static bool HasBodyTransferMap(string transferMapFilename, string modDirectoryHint = null)
++        {
++            return ResolveTransferMapPath(transferMapFilename, modDirectoryHint) != null;
++        }
++
+         public static Bitmap PerformTransfer(Bitmap inputImage, string transferMapFilename)
+         {
+             string transferMapPath = Path.Combine(GlobalPathStorage.OriginalBaseDirectory, "res", "fastuvtransfer", "body", transferMapFilename);
+@@ -227,13 +247,13 @@ namespace FFXIVLooseTextureCompiler
+ 
+         private static void PerformTransfer(string inputImage, string outputImage, string transferMapFilename, System.Action<string, string> xnormalFallback)
+         {
++            string transferMapPath = ResolveTransferMapPath(transferMapFilename);
+ 
+-
+-            string transferMapPath = Path.Combine(GlobalPathStorage.OriginalBaseDirectory, "res", "fastuvtransfer", "body", transferMapFilename);
+-
+-            // If the map doesn't exist for some reason, fallback to XNormal
+-            if (!FFXIVLooseTextureCompiler.ImageProcessing.TexIO.Exists(transferMapPath))
++            if (string.IsNullOrEmpty(transferMapPath))
+             {
++                if (!XNormal.IsAvailable())
++                    return;
++
+                 xnormalFallback(inputImage, outputImage);
+                 string xnormalOutput = ImageManipulation.AddSuffix(outputImage, "_baseTexBaked");
+                 if (FFXIVLooseTextureCompiler.ImageProcessing.TexIO.Exists(xnormalOutput))
+diff --git a/XNormal/XNormal.cs b/XNormal/XNormal.cs
+index 019e531..9b3c762 100644
+--- a/XNormal/XNormal.cs
++++ b/XNormal/XNormal.cs
+@@ -491,8 +491,23 @@ namespace FFXIVLooseTextureCompiler
+             BakeTransferMap(asymLala, relala, outputTifPath);
+         }
+ 
++        public static string GetExecutablePath()
++        {
++            if (!string.IsNullOrEmpty(xNormalPathOverride))
++                return xNormalPathOverride;
++            return Path.Combine(GlobalPathStorage.OriginalBaseDirectory ?? "", xNormal);
++        }
++
++        public static bool IsAvailable()
++        {
++            string executable = GetExecutablePath();
++            return !string.IsNullOrWhiteSpace(executable) && File.Exists(executable);
++        }
++
+         public static void CallXNormal(string inputFBX, string outputFBX, string inputImage, string outputImage, bool isNormalMap = false, int width = 4096, int height = 4096, bool skipRgbSplit = false)
+         {
++            if (!IsAvailable())
++                return;
+ 
+             if (!skipRgbSplit)
+             {
+@@ -516,10 +531,12 @@ namespace FFXIVLooseTextureCompiler
+         }
+         public static void CallXNormalFinal(string inputFBX, string outputFBX, string inputImage, string outputImage, bool isNormalMap = false, int width = 4096, int height = 4096)
+         {
++            string executable = GetExecutablePath();
++            if (!File.Exists(executable))
++                return;
++
+             userDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + @"\FFXIVLooseTextureCompiler\";
+             string path = Path.Combine(userDataPath, xmlFileName);
+-            string executable = !string.IsNullOrEmpty(xNormalPathOverride) ? xNormalPathOverride
+-            : Path.Combine(GlobalPathStorage.OriginalBaseDirectory, xNormal);
+ 
+             if (!Directory.Exists(userDataPath))
+             {
+@@ -544,10 +561,14 @@ namespace FFXIVLooseTextureCompiler
+                     outputImage.Contains("gen2").ToString().ToLower())
+                    );
+             }
+-            ProcessStartInfo processStartInfo = new ProcessStartInfo(@"""" + executable + @"""");
+-            processStartInfo.UseShellExecute = true;
+-            processStartInfo.Arguments = @"""" + path + @"""";
++            ProcessStartInfo processStartInfo = new ProcessStartInfo(executable)
++            {
++                UseShellExecute = false,
++                Arguments = "\"" + path + "\""
++            };
+             Process process = Process.Start(processStartInfo);
++            if (process == null)
++                return;
+             process.WaitForExit();
+             Thread.Sleep(100);
+             string output = outputImage.Replace("_baseTexBaked", null);
+@@ -581,10 +602,13 @@ namespace FFXIVLooseTextureCompiler
+             {
+ 
+                 Dictionary<string, string> generationCache = new Dictionary<string, string>();
+-                string executable = !string.IsNullOrEmpty(xNormalPathOverride) ? xNormalPathOverride
+-                : Path.Combine(GlobalPathStorage.OriginalBaseDirectory, xNormal);
+-                ProcessStartInfo processStartInfo = new ProcessStartInfo(@"""" + executable + @"""");
+-                processStartInfo.UseShellExecute = true;
++                string executable = GetExecutablePath();
++                if (!File.Exists(executable))
++                    return;
++                ProcessStartInfo processStartInfo = new ProcessStartInfo(executable)
++                {
++                    UseShellExecute = false
++                };
+                 processStartInfo.Arguments = "";
+                 if (!Directory.Exists(userDataPath))
+                 {

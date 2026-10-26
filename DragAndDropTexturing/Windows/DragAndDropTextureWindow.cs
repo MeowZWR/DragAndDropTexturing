@@ -86,6 +86,9 @@ namespace RoleplayingVoice
         private bool _isDownloadingDLC = false;
         private bool _isWaitingForPenumbra = false;
         private float _dlcDownloadProgress = 0f;
+        private readonly CancellationTokenSource _disposeCts = new();
+        private CancellationTokenSource _overrideScanCts;
+        private volatile bool _isDisposed;
         public bool IsDownloadingDLC { get => _isDownloadingDLC || _isWaitingForPenumbra; }
         public float DLCDownloadProgress { get => _dlcDownloadProgress; }
 
@@ -1282,7 +1285,7 @@ namespace RoleplayingVoice
                                 {
                                     Guid collection = PenumbraAndGlamourerIpcWrapper.Instance.GetCollectionForObject.Invoke(selectedPlayer.Value.ObjectIndex).Item3.Id;
                                     string collectionId = collection.ToString();
-                                    PenumbraAndGlamourerHelperFunctions.PopulateOmniOverrides(collection, _currentCustomization.Customize.Gender.Value, _currentCustomization.Customize.Clan.Value - 1, plugin);
+                                    PenumbraAndGlamourerHelperFunctions.PopulateOmniOverrides(collection, _currentCustomization.Customize.Gender.Value, _currentCustomization.Customize.Clan.Value - 1, plugin, _disposeCts.Token);
 
                                     HashSet<string> dragAndDroppedCategories = new HashSet<string>();
                                     var psdFiles = files.Where(f => Path.GetExtension(f).Equals(".psd", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -1841,7 +1844,13 @@ namespace RoleplayingVoice
 
         public void RefreshActiveOverrides()
         {
-            if (!Plugin.Configuration.UsePriorityBodyMod) return;
+            if (_isDisposed || !Plugin.Configuration.UsePriorityBodyMod) return;
+
+            var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(_disposeCts.Token);
+            var previousCts = Interlocked.Exchange(ref _overrideScanCts, linkedCts);
+            try { previousCts?.Cancel(); previousCts?.Dispose(); } catch { }
+
+            var token = linkedCts.Token;
             Task.Run(() =>
             {
                 try
@@ -1857,15 +1866,12 @@ namespace RoleplayingVoice
                     int useClan = customization.Customize.Clan.Value - 1;
                     int useGender = customization.Customize.Gender.Value;
 
-                    // Ensure OriginalBaseDirectory is set so FastUVTransfer can find its transfer maps
                     string modPath = PenumbraAndGlamourerIpcWrapper.Instance.GetModDirectory.Invoke();
-                    if (string.IsNullOrEmpty(LooseTextureCompilerCore.GlobalPathStorage.OriginalBaseDirectory) ||
-                        LooseTextureCompilerCore.GlobalPathStorage.OriginalBaseDirectory == System.AppDomain.CurrentDomain.BaseDirectory)
-                    {
-                        LooseTextureCompilerCore.GlobalPathStorage.OriginalBaseDirectory = modPath + @"\LooseTextureCompilerDLC";
-                    }
+                    LooseTextureCompilerCore.GlobalPathStorage.OriginalBaseDirectory =
+                        LooseTextureCompilerCore.GlobalPathStorage.ResolveResourceBaseDirectory(modPath);
 
-                    PenumbraAndGlamourerHelperFunctions.PopulateOmniOverrides(collection, useGender, useClan, plugin);
+                    PenumbraAndGlamourerHelperFunctions.PopulateOmniOverrides(collection, useGender, useClan, plugin, token);
+                    if (token.IsCancellationRequested) return;
 
                     if (FFXIVLooseTextureCompiler.Export.BackupTexturePaths.BiboOverride != null && !string.IsNullOrEmpty(FFXIVLooseTextureCompiler.Export.BackupTexturePaths.BiboOverride.ModName))
                         ActiveBodyOverrides["Bibo+"] = FFXIVLooseTextureCompiler.Export.BackupTexturePaths.BiboOverride.ModName;
@@ -1878,8 +1884,9 @@ namespace RoleplayingVoice
                     if (FFXIVLooseTextureCompiler.Export.BackupTexturePaths.OtopopOverride != null && !string.IsNullOrEmpty(FFXIVLooseTextureCompiler.Export.BackupTexturePaths.OtopopOverride.ModName))
                         ActiveBodyOverrides["Otopop"] = FFXIVLooseTextureCompiler.Export.BackupTexturePaths.OtopopOverride.ModName;
                 }
+                catch (OperationCanceledException) { }
                 catch { }
-            });
+            }, token);
         }
 
         private readonly System.Threading.SemaphoreSlim _exportSemaphore = new System.Threading.SemaphoreSlim(1, 1);
@@ -1930,7 +1937,7 @@ namespace RoleplayingVoice
                     string subRaceName = PenumbraAndGlamourerHelperFunctions.SubRaceToSubRaceName(useRace, useClan);
                     plugin.PluginLog.Information($"[Drag And Drop Debug] Export customization: Race={useRace}, Clan={useClan}, Face={useFace}, RaceCode={raceCode}");
 
-                    PenumbraAndGlamourerHelperFunctions.PopulateOmniOverrides(collection, useGender, useClan, plugin);
+                    PenumbraAndGlamourerHelperFunctions.PopulateOmniOverrides(collection, useGender, useClan, plugin, _disposeCts.Token);
                     foreach (var i in exportTextureSets)
                     {
                         string category = "";
@@ -2287,12 +2294,17 @@ namespace RoleplayingVoice
 
         public void Dispose()
         {
+            _isDisposed = true;
+            try { _overrideScanCts?.Cancel(); } catch { }
+            try { _disposeCts.Cancel(); } catch { }
             if (plugin != null)
             {
                 PenumbraAndGlamourerIpcWrapper.Instance.OnGlamourerStateChanged -= OnGlamourerStateChanged;
                 PenumbraAndGlamourerIpcWrapper.Instance.OnModSettingChanged -= OnModSettingChanged;
             }
             _regenerationDebounce?.Dispose();
+            try { _overrideScanCts?.Dispose(); } catch { }
+            try { _disposeCts.Dispose(); } catch { }
         }
 
         private void TryInitialRebuild()
@@ -3588,6 +3600,8 @@ namespace RoleplayingVoice
 
         public void RebuildCategory(string categoryKey, bool hideProgressUI = true)
         {
+            if (_isDisposed) return;
+
             // Route minion keys to the dedicated minion pipeline, completely separate from body/face/gear
             if (categoryKey.Contains("_minion_"))
             {
@@ -3659,7 +3673,7 @@ namespace RoleplayingVoice
                 try
                 {
                     Guid collection = PenumbraAndGlamourerIpcWrapper.Instance.GetCollectionForObject.Invoke(character.ObjectIndex).EffectiveCollection.Id;
-                    PenumbraAndGlamourerHelperFunctions.PopulateOmniOverrides(collection, localCustomization.Customize.Gender.Value, localCustomization.Customize.Clan.Value - 1, plugin);
+                    PenumbraAndGlamourerHelperFunctions.PopulateOmniOverrides(collection, localCustomization.Customize.Gender.Value, localCustomization.Customize.Clan.Value - 1, plugin, _disposeCts.Token);
                     List<TextureSet> textureSets = new List<TextureSet>();
                     string localModName = charName + " Texture Mod";
 

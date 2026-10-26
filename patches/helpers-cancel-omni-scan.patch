@@ -1,0 +1,98 @@
+diff --git a/PenumbraAndGlamourerHelperFunctions.cs b/PenumbraAndGlamourerHelperFunctions.cs
+index 577c237..d611eaa 100644
+--- a/PenumbraAndGlamourerHelperFunctions.cs
++++ b/PenumbraAndGlamourerHelperFunctions.cs
+@@ -17,6 +17,7 @@ using System.Threading.Tasks;
+ using Dalamud.IoC;
+ using System.Text.RegularExpressions;
+ using System.IO;
++using System.Threading;
+ using FFXIVLooseTextureCompiler;
+ using FFXIVLooseTextureCompiler.Export;
+ using FFXIVLooseTextureCompiler.Racial;
+@@ -694,7 +695,9 @@ namespace PenumbraAndGlamourerHelpers
+             AddResolvedOverlays(overlays, sidecarRoot, modName, collectionIdString, plugin, contextLabel, null, null);
+         }
+ 
+-        public static void PopulateOmniOverrides(Guid collectionId, int gender, int race, DragAndDropTexturing.Plugin plugin)
++        private static bool _skipCrossConvert;
++
++        public static void PopulateOmniOverrides(Guid collectionId, int gender, int race, DragAndDropTexturing.Plugin plugin, CancellationToken cancellationToken = default)
+         {
+             var collectionIdString = collectionId.ToString();
+             // Clear prior static values to prevent stale reads
+@@ -705,6 +708,7 @@ namespace PenumbraAndGlamourerHelpers
+             FFXIVLooseTextureCompiler.Export.BackupTexturePaths.OtopopOverride = null;
+             FFXIVLooseTextureCompiler.Export.BackupTexturePaths.VanillaLalaOverride = null;
+             FFXIVLooseTextureCompiler.Export.BackupTexturePaths.RelalaOverride = null;
++            _skipCrossConvert = false;
+ 
+             AdvancedOverlayParser.ActiveOverlays.Clear();
+ 
+@@ -712,11 +716,17 @@ namespace PenumbraAndGlamourerHelpers
+             {
+                 plugin?.PluginLog?.Information("[Drag And Drop Debug] Populating Omni Overrides...");
+                 string modDirectoryPath = PenumbraAndGlamourerIpcWrapper.Instance.GetModDirectory.Invoke();
++                GlobalPathStorage.OriginalBaseDirectory = GlobalPathStorage.ResolveResourceBaseDirectory(modDirectoryPath);
+                 var mods = PenumbraAndGlamourerIpcWrapper.Instance.GetModList.Invoke();
+ 
+                 List<(string Name, string Dir, int Priority, Dictionary<string, List<string>> Settings)> activeMods = new List<(string Name, string Dir, int Priority, Dictionary<string, List<string>> Settings)>();
+                 foreach (var mod in mods)
+                 {
++                    if (cancellationToken.IsCancellationRequested)
++                    {
++                        plugin?.PluginLog?.Information("[Drag And Drop Debug] Omni Overrides population cancelled.");
++                        return;
++                    }
+                     string modNameLower = mod.Value.ToLower();
+                     string modDirLower = mod.Key.ToLower();
+                     if (modNameLower.Contains("drag and drop") || modDirLower.Contains("drag and drop") ||
+@@ -741,6 +751,12 @@ namespace PenumbraAndGlamourerHelpers
+ 
+                 foreach (var mod in activeMods)
+                 {
++                    if (cancellationToken.IsCancellationRequested)
++                    {
++                        plugin?.PluginLog?.Information("[Drag And Drop Debug] Omni Overrides population cancelled.");
++                        return;
++                    }
++
+                     Dictionary<string, string> files = GetFilesForMod(modDirectoryPath, mod.Dir, mod.Settings);
+ 
+                     // Diagnostic: show what body types this mod contains
+@@ -800,14 +816,25 @@ namespace PenumbraAndGlamourerHelpers
+         {
+             try
+             {
++                if (_skipCrossConvert)
++                    return;
++
+                 bool hasBibo = BackupTexturePaths.BiboOverride != null && !string.IsNullOrEmpty(BackupTexturePaths.BiboOverride.ModName);
+                 bool hasGen3 = BackupTexturePaths.Gen3Override != null && !string.IsNullOrEmpty(BackupTexturePaths.Gen3Override.ModName);
+ 
+-                plugin?.PluginLog?.Information($"[Drag And Drop Debug] CrossConvert check: hasBibo={hasBibo} ('{BackupTexturePaths.BiboOverride?.ModName}'), hasGen3={hasGen3} ('{BackupTexturePaths.Gen3Override?.ModName}')");
+-
+                 // Nothing to cross-convert if neither or both exist
+                 if (hasBibo == hasGen3) return;
+ 
++                plugin?.PluginLog?.Information($"[Drag And Drop Debug] CrossConvert check: hasBibo={hasBibo} ('{BackupTexturePaths.BiboOverride?.ModName}'), hasGen3={hasGen3} ('{BackupTexturePaths.Gen3Override?.ModName}')");
++
++                string neededMap = hasBibo ? "bibo_to_gen3_transfer.tif" : "gen3_to_bibo_transfer.tif";
++                if (!FastUVTransfer.HasBodyTransferMap(neededMap) && !XNormal.IsAvailable())
++                {
++                    _skipCrossConvert = true;
++                    plugin?.PluginLog?.Information("[Drag And Drop Debug] Cross-convert skipped: FastUV transfer maps and xNormal.exe are missing.");
++                    return;
++                }
++
+                 string crossConvertDir = Path.Combine(
+                     GlobalPathStorage.OriginalBaseDirectory ??
+                     Path.Combine(PenumbraAndGlamourerIpcWrapper.Instance.GetModDirectory.Invoke(), "LooseTextureCompilerDLC"),
+@@ -911,6 +938,7 @@ namespace PenumbraAndGlamourerHelpers
+             }
+             catch (Exception ex)
+             {
++                _skipCrossConvert = true;
+                 plugin?.PluginLog?.Information($"[Drag And Drop Debug] ERROR in CrossConvertMissingOverrides: {ex.Message}");
+             }
+         }

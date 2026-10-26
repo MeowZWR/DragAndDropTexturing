@@ -299,6 +299,7 @@ public class MainWindow : Window, IDisposable
     private int _cachedBodyType = -2;
     private string _cachedBodyModName = null;
     private DateTime _lastBodyTypeCheck = DateTime.MinValue;
+    private volatile bool _bodyTypeCheckRunning;
     private string _pendingTintRebuildCategory = null;
     private string _penumbraColorEditorOverlayKey = null;
 
@@ -351,25 +352,53 @@ public class MainWindow : Window, IDisposable
             if (ImGui.BeginTabItem(Translator.LocalizeUI("Body Types And Detection")))
             {
                 ImGui.Text(Translator.LocalizeUI("Current Body Type Detection:"));
-                if ((DateTime.Now - _lastBodyTypeCheck).TotalSeconds > 5)
+                if ((DateTime.Now - _lastBodyTypeCheck).TotalSeconds > 5 && !_bodyTypeCheckRunning)
                 {
                     var localPlayer = Plugin.SafeGameObjectManager.LocalPlayer;
-                    if (localPlayer != null)
+                    if (localPlayer == null)
+                    {
+                        _cachedBodyType = -2;
+                        _cachedBodyModName = null;
+                        _lastBodyTypeCheck = DateTime.Now;
+                    }
+                    else
                     {
                         var character = localPlayer as Dalamud.Game.ClientState.Objects.Types.ICharacter;
-                        if (character != null)
+                        if (character == null)
+                        {
+                            _cachedBodyType = -2;
+                            _cachedBodyModName = null;
+                            _lastBodyTypeCheck = DateTime.Now;
+                        }
+                        else
                         {
                             var customization = PenumbraAndGlamourerHelpers.PenumbraAndGlamourerHelperFunctions.GetCustomization(character);
                             Guid collectionId = PenumbraAndGlamourerIpcWrapper.Instance.GetCollectionForObject.Invoke(localPlayer.ObjectIndex).Item3.Id;
                             int gender = customization.Customize.Gender.Value;
-                            _cachedBodyType = PenumbraAndGlamourerHelpers.PenumbraAndGlamourerHelperFunctions.DetectBaseBodyFromPenumbra(collectionId, gender, out _cachedBodyModName, Plugin);
+                            var plugin = Plugin;
+                            _bodyTypeCheckRunning = true;
+                            _lastBodyTypeCheck = DateTime.Now;
+                            System.Threading.Tasks.Task.Run(() =>
+                            {
+                                try
+                                {
+                                    string detectedModName;
+                                    int bodyType = PenumbraAndGlamourerHelpers.PenumbraAndGlamourerHelperFunctions.DetectBaseBodyFromPenumbra(collectionId, gender, out detectedModName, plugin);
+                                    _cachedBodyType = bodyType;
+                                    _cachedBodyModName = detectedModName;
+                                }
+                                catch
+                                {
+                                    _cachedBodyType = -2;
+                                    _cachedBodyModName = null;
+                                }
+                                finally
+                                {
+                                    _bodyTypeCheckRunning = false;
+                                }
+                            });
                         }
                     }
-                    else
-                    {
-                        _cachedBodyType = -2;
-                    }
-                    _lastBodyTypeCheck = DateTime.Now;
                 }
 
                 if (_cachedBodyType != -2)
